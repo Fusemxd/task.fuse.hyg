@@ -286,6 +286,23 @@
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const fullMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         
+        const launchMonths = ["กุมภาพันธ์ (Feb)", "มีนาคม (Mar)", "เมษายน (Apr)", "พฤษภาคม (May)", "มิถุนายน (Jun)", "กรกฎาคม (Jul)", "สิงหาคม (Aug)", "กันยายน (Sep)", "ตุลาคม (Oct)", "พฤศจิกายน (Nov)", "ธันวาคม (Dec)", "มกราคม (Jan ปีหน้า)"];
+
+        const themeDB = {
+            1: { double: "New Year New You", mid: "Start Fresh Deals", payday: "Payday รับตรุษจีน" },
+            2: { double: "Double Love Deal", mid: "Sweet Valentine", payday: "Payday คนมีคู่" },
+            3: { double: "Summer Hot Sale", mid: "Hot Deal ท้าแดด", payday: "Payday คลายร้อน" },
+            4: { double: "Songkran Mega Sale", mid: "สาดโปร ชุ่มฉ่ำ", payday: "Payday หลังสงกรานต์" },
+            5: { double: "Back to School", mid: "Rainy Season Prep", payday: "Payday ท้าฝน" },
+            6: { double: "Mid-Year Mega Sale", mid: "Mid-Year Bonus", payday: "Payday ช้อปกลางปี" },
+            7: { double: "Healthy July", mid: "Health Boost Deal", payday: "Payday สุขภาพดี" },
+            8: { double: "Mother's Day Special", mid: "Love Mom Deal", payday: "Payday เพื่อแม่" },
+            9: { double: "9.9 Super Shopping", mid: "After Party 9.9", payday: "Payday ปลายฝน" },
+            10: { double: "10.10 Brand Festival", mid: "Big Brands Sale", payday: "Payday เตรียมหนาว" },
+            11: { double: "11.11 Biggest Sale", mid: "Shock Price Deal", payday: "Payday ก่อนปีใหม่" },
+            12: { double: "12.12 Year End Sale", mid: "Gift Festival", payday: "Payday ฉลองปีใหม่" }
+        };
+
         const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
         const videoChannels = ["Short Video (Tiktok/Reels)", "Youtube Long Form", "Ads Video", "Internal Clip"];
 
@@ -344,10 +361,23 @@
         function setupRealtimeListener() {
             const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
             onSnapshot(query(tasksRef), (snapshot) => {
+                // Check seed (v6 to force restore)
+                if(snapshot.empty && !localStorage.getItem('seeded_v6')) {
+                    seedInitialData(tasksRef);
+                    localStorage.setItem('seeded_v6', 'true');
+                    return; 
+                }
+                
+                // If not empty but localStorage v6 missing (user might want to force restore manually, can be added later)
+                // For now, if DB has data, we load it. 
+                // IF user sees "missing" data, it might mean they are connecting to a new DB path or data was wiped. 
+                // But since appId is constant, data should be there. 
+                // The issue might be filtering. I added department filter logic below.
+
                 scheduleData = Array.from({length: 12}, () => []);
                 snapshot.forEach((doc) => {
                     const t = { id: doc.id, ...doc.data() };
-                    // Default department to Graphic if missing
+                    // Default department to Graphic if missing (Backward Compatibility)
                     if(!t.department) t.department = 'Graphic';
                     
                     if(t.monthIndex >= 0 && t.monthIndex < 12) {
@@ -357,6 +387,121 @@
                 refreshView();
                 document.getElementById('loadingOverlay').classList.add('hidden');
             });
+        }
+
+        async function seedInitialData(ref) {
+            console.log("Seeding Full Data (Restored Version)...");
+            
+            for (let i = 0; i < 12; i++) {
+                let targetNum = i + 2; if (targetNum > 12) targetNum = 1;
+                const targetName = launchMonths[i].split(' ')[0];
+                const doubleDigit = `${targetNum}.${targetNum}`;
+                const themes = themeDB[targetNum] || { double: "Campaign", mid: "MidMonth", payday: "Payday" };
+
+                // --- RESTORED GRAPHIC TASKS (Full Set) ---
+                const graphicTasks = [
+                    // Main KV
+                    { 
+                        title: `Main Key Visual: ${doubleDigit} ${themes.double}`, 
+                        desc: `ออกแบบ KV หลักสำหรับแคมเปญ ${doubleDigit} (FB Cover, Line OA, Website Banner) - เน้นสี${i%2==0?'สดใส':'พาสเทล'}`, 
+                        channel: "Online Platform", 
+                        priority: "C", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 5).toISOString().split('T')[0]
+                    },
+                    // Banner Sets
+                    { 
+                        title: `Banner Sets: Mid-Month Sale (${targetName})`, 
+                        desc: "ภาพโปรโมชั่นกลางเดือน 15+ SKU สินค้าขายดี ปรับโทนสีตามธีม", 
+                        channel: "Online Platform", 
+                        priority: "H", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 12).toISOString().split('T')[0]
+                    },
+                    { 
+                        title: `Banner Sets: Payday Sale (${targetName})`, 
+                        desc: "ภาพโปรโมชั่นสิ้นเดือน (เงินเดือนออก) เน้นจัดเซตคุ้มค่า", 
+                        channel: "Online Platform", 
+                        priority: "H", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 25).toISOString().split('T')[0]
+                    },
+                    // Social Content (Restored)
+                    { 
+                        title: `Social Content: ${themes.double} Teaser`, 
+                        desc: "Album Post (4+1) เล่าสตอรี่แคมเปญ + โปรโมชั่น Early Bird", 
+                        channel: "Social Media", 
+                        priority: "M", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 1).toISOString().split('T')[0]
+                    },
+                    { 
+                        title: `Review Content: Customer Feedback`, 
+                        desc: "รวมรีวิวลูกค้า (แคปแชท/รูปรีวิว) ลง FB/IG Story", 
+                        channel: "Social Media", 
+                        priority: "S", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 15).toISOString().split('T')[0]
+                    },
+                    { 
+                        title: `Engagement Post: Quiz/Game`, 
+                        desc: "โพสต์เกมชิงรางวัล หรือคำถามร่วมสนุกประจำเดือน", 
+                        channel: "Social Media", 
+                        priority: "S", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 20).toISOString().split('T')[0]
+                    },
+                    // Internal (Restored)
+                    { 
+                        title: `Internal: Monthly Newsletter (${targetName})`, 
+                        desc: "จดหมายข่าวอัปเดตกิจกรรมภายในบริษัท ส่งทางอีเมล", 
+                        channel: "Internal/Support", 
+                        priority: "S", 
+                        status: "todo", 
+                        department: "Graphic",
+                        dueDate: new Date(2025, i, 28).toISOString().split('T')[0]
+                    }
+                ];
+
+                // --- VIDEO TASKS ---
+                const videoTasks = [
+                    {
+                        title: `Shorts: ${doubleDigit} Unboxing`,
+                        desc: "คลิปสั้นแกะกล่องสินค้าไฮไลท์ประจำแคมเปญ (Vertical 9:16)",
+                        channel: "Short Video (Tiktok/Reels)",
+                        priority: "H",
+                        status: "todo",
+                        department: "Video",
+                        dueDate: new Date(2025, i, 3).toISOString().split('T')[0]
+                    },
+                    {
+                        title: `Reels: บรรยากาศแคมเปญ ${themes.double}`,
+                        desc: "คลิปบรรยากาศ/เบื้องหลัง หรือ Mood & Tone สินค้า",
+                        channel: "Short Video (Tiktok/Reels)",
+                        priority: "M",
+                        status: "todo",
+                        department: "Video",
+                        dueDate: new Date(2025, i, 10).toISOString().split('T')[0]
+                    }
+                ];
+
+                const allTasks = [...graphicTasks, ...videoTasks];
+
+                for (const t of allTasks) {
+                    await addDoc(ref, {
+                        ...t,
+                        campaignTheme: themes.double,
+                        monthIndex: i,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            }
         }
 
         window.switchDepartment = function(dept) {
