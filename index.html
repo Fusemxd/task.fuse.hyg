@@ -437,10 +437,10 @@
         function setupRealtimeListener() {
             const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
             onSnapshot(query(tasksRef), (snapshot) => {
-                // Check seed (v8 to force update C/S priority and correct KPI mapping)
-                if(snapshot.empty && !localStorage.getItem('seeded_v8')) {
+                // Check seed (v9 to force update to ensure KPI mapping and correct language settings are applied)
+                if(snapshot.empty && !localStorage.getItem('seeded_v9')) {
                     seedInitialData(tasksRef);
-                    localStorage.setItem('seeded_v8', 'true');
+                    localStorage.setItem('seeded_v9', 'true');
                     return; 
                 }
                 
@@ -475,7 +475,7 @@
                         title: `Main Key Visual: ${doubleDigit} ${themes.double}`, 
                         desc: `ออกแบบ KV หลักสำหรับแคมเปญ ${doubleDigit} (FB Cover, Line OA, Website Banner)`, 
                         channel: "Online Platform", 
-                        priority: "C", // Critical
+                        priority: "C", 
                         status: "doing", 
                         department: "Graphic",
                         kpi: "Financials (1.1)", 
@@ -486,7 +486,7 @@
                         title: `Banner Sets: Mid-Month Sale (${targetName})`, 
                         desc: "ภาพโปรโมชั่นกลางเดือน 15+ SKU สินค้าขายดี", 
                         channel: "Online Platform", 
-                        priority: "C", // High -> Critical
+                        priority: "C", 
                         status: "todo", 
                         department: "Graphic",
                         kpi: "Profitability (1.2)", 
@@ -496,7 +496,7 @@
                         title: `Banner Sets: Payday Sale (${targetName})`, 
                         desc: "ภาพโปรโมชั่นสิ้นเดือน (เงินเดือนออก) เน้นจัดเซตคุ้มค่า", 
                         channel: "Online Platform", 
-                        priority: "C", // High -> Critical
+                        priority: "C", 
                         status: "todo", 
                         department: "Graphic",
                         kpi: "Financials (1.1)", 
@@ -507,7 +507,7 @@
                         title: `Social Content: ${themes.double} Teaser`, 
                         desc: "Album Post (4+1) เล่าสตอรี่แคมเปญ + โปรโมชั่น Early Bird", 
                         channel: "Social Media", 
-                        priority: "S", // Medium -> Support
+                        priority: "S", 
                         status: "draft", 
                         department: "Graphic",
                         kpi: "Customer Exp (2.1)", 
@@ -517,7 +517,7 @@
                         title: `Review Content: Customer Feedback`, 
                         desc: "รวมรีวิวลูกค้า (แคปแชท/รูปรีวิว) ลง FB/IG Story", 
                         channel: "Social Media", 
-                        priority: "S", // Support
+                        priority: "S", 
                         status: "done", 
                         department: "Graphic",
                         kpi: "Market Presence (2.3)", 
@@ -527,7 +527,7 @@
                         title: `Engagement Post: Quiz/Game`, 
                         desc: "โพสต์เกมชิงรางวัล หรือคำถามร่วมสนุกประจำเดือน", 
                         channel: "Social Media", 
-                        priority: "S", // Support
+                        priority: "S", 
                         status: "todo", 
                         department: "Graphic",
                         kpi: "N/A", 
@@ -538,7 +538,7 @@
                         title: `Internal: Monthly Newsletter (${targetName})`, 
                         desc: "จดหมายข่าวอัปเดตกิจกรรมภายในบริษัท ส่งทางอีเมล", 
                         channel: "Internal/Support", 
-                        priority: "S", // Support
+                        priority: "S", 
                         status: "todo", 
                         department: "Graphic",
                         kpi: "IBC Collaboration (6.5)", 
@@ -552,7 +552,7 @@
                         title: `Shorts: ${doubleDigit} Unboxing`,
                         desc: "คลิปสั้นแกะกล่องสินค้าไฮไลท์ประจำแคมเปญ (Vertical 9:16)",
                         channel: "Short Video (Tiktok/Reels)",
-                        priority: "C", // High -> Critical
+                        priority: "C", 
                         status: "todo",
                         department: "Video",
                         kpi: "Financials (1.1)", 
@@ -562,7 +562,7 @@
                         title: `Reels: บรรยากาศแคมเปญ ${themes.double}`,
                         desc: "คลิปบรรยากาศ/เบื้องหลัง หรือ Mood & Tone สินค้า",
                         channel: "Short Video (Tiktok/Reels)",
-                        priority: "S", // Medium -> Support
+                        priority: "S", 
                         status: "todo",
                         department: "Video",
                         kpi: "Customer Exp (2.1)", 
