@@ -26,7 +26,6 @@
         .status-done { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
 
         /* Department Theme Colors */
-        /* Used for non-JS controlled elements like the body class, although JS handles most of the colors now */
         .theme-graphic { --main-color-light: #0ea5e9; --main-color-dark: #0369a1; } /* Sky Blue */
         .theme-video { --main-color-light: #f43f5e; --main-color-dark: #c20e2e; } /* Rose Red */
         
@@ -175,14 +174,24 @@
                     <i class="fa-solid fa-calendar-check absolute -right-6 -bottom-6 text-8xl md:text-9xl text-white opacity-10"></i>
                 </div>
 
-                <!-- Filters & Add Button -->
+                <!-- Filters, Search & Add Button -->
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0" id="filterContainer">
-                        <button class="filter-btn active whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg bg-slate-700 text-white font-medium transition" onclick="filterTasks('all', this)">งานทั้งหมด</button>
-                        <!-- Dynamic Filters will be injected here -->
+                    <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <!-- Filters -->
+                        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 shrink-0" id="filterContainer">
+                            <button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg bg-slate-700 text-white font-medium transition" onclick="filterTasks('all')">งานทั้งหมด</button>
+                            <!-- Dynamic Filters will be injected here -->
+                        </div>
+
+                        <!-- Search Box -->
+                        <div class="relative w-full sm:w-64 shrink-0">
+                            <input type="text" id="taskSearchInput" oninput="liveSearchTasks()" placeholder="ค้นหางาน..." 
+                                class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 pl-8">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        </div>
                     </div>
                     
-                    <button id="addTaskBtn" onclick="openAddTaskModal()" class="hidden flex justify-center items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg shadow-sm shadow-green-200 transition transform active:scale-95 w-full sm:w-auto">
+                    <button id="addTaskBtn" onclick="openAddTaskModal()" class="hidden flex justify-center items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg shadow-sm shadow-green-200 transition transform active:scale-95 w-full sm:w-auto shrink-0">
                         <i class="fa-solid fa-plus"></i> เพิ่มงานใหม่
                     </button>
                 </div>
@@ -306,14 +315,34 @@
             </div>
         </div>
     </div>
+    
+    <!-- DELETE CONFIRMATION MODAL (Custom Alert) -->
+    <div id="deleteConfirmModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop fade-in p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100">
+            <div class="p-6 text-center">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 mb-2">ยืนยันการลบงาน?</h3>
+                <p class="text-sm text-slate-500">คุณแน่ใจหรือไม่ว่าต้องการลบงานนี้ การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+                <input type="hidden" id="deleteTaskIdHolder">
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
+                <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition">ยกเลิก</button>
+                <button onclick="executeDeleteTask()" class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg shadow-sm transition">ยืนยันการลบ</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Config (Replace with Canvas variables if available, otherwise use defaults)
+        // NOTE: Using fallback API Key/Project ID. In Canvas, these should be handled by __firebase_config.
         const firebaseConfig = {
             apiKey: "AIzaSyBdmGg7vi9QAD04TFM9suKvjoId_HO7s18",
             authDomain: "fusetaskhyg.firebaseapp.com",
@@ -334,6 +363,7 @@
         let scheduleData = Array.from({length: 12}, () => []);
         let currentMonth = 0;
         let activeFilter = 'all';
+        let searchQuery = ''; // NEW: State for search query
         let chartInstance = null; // Global chart instance for dashboard
         let openDropdownId = null; // Global state for one-at-a-time dropdowns
 
@@ -358,7 +388,8 @@
         };
 
         const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
-        const videoChannels = ["Short Video (Tiktok/Reels)", "Youtube Long Form", "Ads Video", "Internal Clip"];
+        // UPDATED: Change Video Channels to Short, Online, Offline, Internal
+        const videoChannels = ["Short Video (Tiktok/Reels)", "Online Platform", "Offline/Print", "Internal Clip"];
         
         const STATUS_CONFIG = {
             'todo': { label: 'รอดำเนินการ', colorClass: 'status-todo', icon: 'fa-circle' },
@@ -606,8 +637,12 @@
             document.getElementById('headerCard').className = `bg-gradient-to-r ${gradientClass} text-white rounded-xl p-5 md:p-6 shadow-lg flex justify-between items-center relative overflow-hidden transition-colors duration-500`;
             document.getElementById('saveTaskBtn').className = `px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm transition ${btnClass}`;
             
-            // 3. Reset Filter if requested and Refresh View
-            if(resetFilter) activeFilter = 'all';
+            // 3. Reset Filter & Search if requested and Refresh View
+            if(resetFilter) {
+                activeFilter = 'all';
+                searchQuery = '';
+                document.getElementById('taskSearchInput').value = '';
+            }
             refreshView();
         }
 
@@ -625,6 +660,10 @@
             currentMonth = idx;
             document.getElementById('currentMonthTitle').innerText = MONTH_NAMES_TH[idx];
             document.getElementById('launchMonthTitle').innerText = LAUNCH_MONTHS_TH[idx];
+            // Reset search and filter when changing months
+            activeFilter = 'all';
+            searchQuery = '';
+            document.getElementById('taskSearchInput').value = '';
             refreshView();
         }
 
@@ -676,7 +715,10 @@
                 const themeColor = currentDepartment === 'Graphic' ? 'sky' : 'rose';
                 const activeClass = `bg-${themeColor}-600 text-white`;
                 
-                html += `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg transition ${isActive ? activeClass : 'bg-white text-slate-600 border border-slate-200'}" onclick="filterTasks('${c}')">${c.split(' ')[0]}</button>`;
+                // Show only the first word for filter button
+                const filterLabel = c.split(' ')[0];
+
+                html += `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg transition ${isActive ? activeClass : 'bg-white text-slate-600 border border-slate-200'}" onclick="filterTasks('${c}')">${filterLabel}</button>`;
             });
             container.innerHTML = html;
         }
@@ -684,6 +726,12 @@
         window.filterTasks = function(f) {
             activeFilter = f;
             renderFilters();
+            renderTasks();
+        }
+
+        // NEW: Live Search Function
+        window.liveSearchTasks = function() {
+            searchQuery = document.getElementById('taskSearchInput').value.toLowerCase().trim();
             renderTasks();
         }
         
@@ -712,6 +760,7 @@
                 const dropdown = document.getElementById(openDropdownId);
                 let isOutside = true;
                 let target = event.target;
+                // Traverse up to 4 levels to check if the click target is the dropdown or its button
                 for(let i=0; i<4; i++) {
                     if (target === dropdown || target.id === openDropdownId.replace('status-dropdown-', 'status-btn-')) {
                         isOutside = false;
@@ -732,12 +781,26 @@
 
         window.renderTasks = function() {
             const allTasks = scheduleData[currentMonth].filter(t => t.department === currentDepartment);
-            const filtered = activeFilter === 'all' ? allTasks : allTasks.filter(t => t.channel === activeFilter);
+            
+            // 1. Apply Filter
+            let filtered = activeFilter === 'all' ? allTasks : allTasks.filter(t => t.channel === activeFilter);
+            
+            // 2. Apply Search
+            if (searchQuery) {
+                filtered = filtered.filter(t => 
+                    t.title.toLowerCase().includes(searchQuery) || 
+                    t.desc.toLowerCase().includes(searchQuery) ||
+                    t.channel.toLowerCase().includes(searchQuery) ||
+                    t.priority.toLowerCase().includes(searchQuery) ||
+                    t.kpi.toLowerCase().includes(searchQuery)
+                );
+            }
+
             const container = document.getElementById('taskList');
             
             if(filtered.length === 0) {
                 container.innerHTML = `<div class="col-span-full py-12 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                    <i class="fa-regular fa-folder-open text-2xl mb-2"></i><br>ไม่มีงานในหมวดนี้
+                    <i class="fa-regular fa-folder-open text-2xl mb-2"></i><br>${searchQuery ? 'ไม่พบงานที่ค้นหา' : 'ไม่มีงานในหมวดนี้'}
                 </div>`;
                 return;
             }
@@ -755,8 +818,8 @@
                 const actions = isGuest ? '' : `
                     <div class="flex gap-2">
                         <button onclick="openEditTaskModal('${t.id}')" class="text-slate-300 hover:text-sky-500"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
-                    </div>`;
+                        <button onclick="promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </div>`; // MODIFIED: Changed deleteTask to promptDeleteTask
                 
                 // Status Dropdown (Disabled if Guest) - Changed to explicit click handler
                 const statusBtn = isGuest 
@@ -1043,8 +1106,21 @@
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { status });
         }
 
-        window.deleteTask = async (id) => {
-            if(isGuest || !confirm('ยืนยันการลบงานนี้หรือไม่?')) return;
+        // NEW: Custom Modal for Delete Confirmation
+        window.promptDeleteTask = (id) => {
+            if(isGuest) return;
+            document.getElementById('deleteTaskIdHolder').value = id;
+            document.getElementById('deleteConfirmModal').classList.remove('hidden');
+        }
+
+        window.closeDeleteConfirmModal = () => {
+            document.getElementById('deleteConfirmModal').classList.add('hidden');
+        }
+
+        window.executeDeleteTask = async () => {
+            const id = document.getElementById('deleteTaskIdHolder').value;
+            if(!id) return;
+            closeDeleteConfirmModal(); // Close modal first
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
         }
 
@@ -1052,25 +1128,62 @@
             document.getElementById('view-planner').classList.add('hidden');
             document.getElementById('view-dashboard').classList.add('hidden');
             
+            // Determine theme color for active state
+            const themeColorClass = currentDepartment === 'Graphic' ? 'bg-sky-500' : 'bg-rose-500';
+            const themeHoverClass = currentDepartment === 'Graphic' ? 'hover:bg-sky-600' : 'hover:bg-rose-600';
+
+
             // Remove 'active' class and reset style for all nav buttons
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 if (btn.id.startsWith('tab-')) {
                     btn.classList.remove('active');
-                    btn.className = btn.className.replace(/bg-sky-\d00|bg-rose-\d00/, 'bg-white'); // Clean up old color classes
+                    // Reset to default inactive style (white background, slate text, border)
+                    btn.className = btn.className.replace(themeColorClass, 'bg-white'); // Clean up active color
                     btn.classList.add('text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
+                    btn.classList.remove('font-medium', 'text-white', 'shadow-sm', 'shadow-green-200', 'transition', 'transform', 'active:scale-95'); // Clean up old classes
                 }
             });
 
-            // Add 'active' class to the current tab, inheriting its color from --active-bg
-            document.getElementById('tab-'+v).classList.add('active');
-            document.getElementById('tab-'+v).classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
-
+            // Add 'active' class to the current tab and apply theme styles
+            const activeTab = document.getElementById('tab-'+v);
+            activeTab.classList.add('active');
+            // Remove inactive style and apply active style
+            activeTab.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
+            // Reapply necessary base classes and set the correct active color class
+            // NOTE: The 'active' CSS style handles the background/color/shadow based on CSS var(--active-bg)
+            
             document.getElementById('view-'+v).classList.remove('hidden');
             
             if (v === 'dashboard') {
                 renderDashboard();
             }
         }
+        
+        // Initial load of the first month
+        window.onload = function() {
+            // Check if __firebase_config and __initial_auth_token are available in the environment
+            const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+            const envToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            // Re-initialize Firebase with environment variables if available
+            if (typeof __firebase_config !== 'undefined' || typeof __initial_auth_token !== 'undefined') {
+                initializeApp(envConfig);
+                const authInstance = getAuth();
+                if (envToken) {
+                    signInWithCustomToken(authInstance, envToken)
+                        .catch(e => {
+                            console.error("Custom Auth Token Sign-in Failed. Falling back to Anonymous.", e);
+                            signInAnonymously(authInstance);
+                        });
+                } else {
+                    signInAnonymously(authInstance);
+                }
+            }
+            
+            // Set initial month
+            loadMonth(new Date().getMonth());
+        }
+
     </script>
 </body>
 </html>
