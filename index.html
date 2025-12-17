@@ -143,8 +143,8 @@
             <aside class="hidden lg:block lg:col-span-3 space-y-4">
                 <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100 sticky top-20">
                     <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                        <span class="text-xs font-bold text-slate-500 uppercase">Months</span>
-                        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">Tasks</span>
+                        <span class="text-xs font-bold text-slate-500 uppercase">เดือน</span>
+                        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">งาน</span>
                     </div>
                     <div class="space-y-1" id="monthNavigator"></div>
                 </div>
@@ -156,11 +156,11 @@
                     <div class="relative z-10">
                         <div class="flex items-baseline gap-2 md:gap-3">
                             <span class="text-xs md:text-sm opacity-80 font-light">Working In:</span>
-                            <h2 class="text-2xl md:text-3xl font-bold" id="currentMonthTitle">January</h2>
+                            <h2 class="text-2xl md:text-3xl font-bold" id="currentMonthTitle">มกราคม</h2>
                         </div>
                         <div class="flex items-baseline gap-2 md:gap-3 mt-1">
                             <span class="text-xs md:text-sm opacity-80 font-light">Launch:</span>
-                            <h2 class="text-lg md:text-xl font-semibold text-white" id="launchMonthTitle">February</h2>
+                            <h2 class="text-lg md:text-xl font-semibold text-white" id="launchMonthTitle">กุมภาพันธ์</h2>
                         </div>
                     </div>
                     <!-- Guest Mode Badge -->
@@ -173,7 +173,7 @@
                 <!-- Filters & Add Button -->
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                     <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0" id="filterContainer">
-                        <button class="filter-btn active whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg bg-slate-700 text-white font-medium transition" onclick="filterTasks('all', this)">All</button>
+                        <button class="filter-btn active whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg bg-slate-700 text-white font-medium transition" onclick="filterTasks('all', this)">งานทั้งหมด</button>
                         <!-- Dynamic Filters will be injected here -->
                     </div>
                     
@@ -198,19 +198,19 @@
                     <h4 class="font-bold text-slate-800 text-lg">สถานะปัจจุบัน (Current Status)</h4>
                     <div class="space-y-4">
                         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <span class="text-slate-600"><i class="fa-solid fa-circle text-slate-400 mr-2"></i>To Do</span>
+                            <span class="text-slate-600"><i class="fa-solid fa-circle text-slate-400 mr-2"></i>รอดำเนินการ</span>
                             <span class="font-bold text-lg text-slate-700" id="stat-todo">0</span>
                         </div>
                         <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <span class="text-blue-700"><i class="fa-solid fa-spinner text-blue-500 mr-2"></i>Doing</span>
+                            <span class="text-blue-700"><i class="fa-solid fa-spinner text-blue-500 mr-2"></i>กำลังทำ</span>
                             <span class="font-bold text-lg text-blue-700" id="stat-doing">0</span>
                         </div>
                         <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <span class="text-purple-700"><i class="fa-solid fa-clock text-purple-500 mr-2"></i>Review</span>
+                            <span class="text-purple-700"><i class="fa-solid fa-clock text-purple-500 mr-2"></i>รอรีวิว</span>
                             <span class="font-bold text-lg text-purple-700" id="stat-draft">0</span>
                         </div>
                         <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-100">
-                            <span class="text-green-700"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>Completed</span>
+                            <span class="text-green-700"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>เสร็จสิ้น</span>
                             <span class="font-bold text-lg text-green-700" id="stat-done">0</span>
                         </div>
                     </div>
@@ -282,10 +282,8 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">ความสำคัญ</label>
                         <select id="newTaskPriority" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-                            <option value="C">Critical (ด่วนมาก)</option>
-                            <option value="H">High (ด่วน)</option>
-                            <option value="M" selected>Medium (ปกติ)</option>
-                            <option value="S">Support (งานรอง)</option>
+                            <option value="C">Critical (C - ด่วน/สำคัญ)</option>
+                            <option value="S" selected>Support (S - งานรอง/ทั่วไป)</option>
                         </select>
                     </div>
                 </div>
@@ -335,11 +333,10 @@
         let chartInstance = null; // Global chart instance for dashboard
         let openDropdownId = null; // Global state for one-at-a-time dropdowns
 
-        // Constants
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const fullMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-        
-        const launchMonths = ["กุมภาพันธ์ (Feb)", "มีนาคม (Mar)", "เมษายน (Apr)", "พฤษภาคม (May)", "มิถุนายน (Jun)", "กรกฎาคม (Jul)", "สิงหาคม (Aug)", "กันยายน (Sep)", "ตุลาคม (Oct)", "พฤศจิกายน (Nov)", "ธันวาคม (Dec)", "มกราคม (Jan ปีหน้า)"];
+        // Constants (Updated to use only Thai names)
+        const MONTH_NAMES_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+        // เดือนที่งานจะถูก Launch (คือเดือนถัดไป)
+        const LAUNCH_MONTHS_TH = ["กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม", "มกราคม (ปีหน้า)"];
 
         const themeDB = {
             1: { double: "New Year New You", mid: "Start Fresh Deals", payday: "Payday รับตรุษจีน" },
@@ -360,10 +357,10 @@
         const videoChannels = ["Short Video (Tiktok/Reels)", "Youtube Long Form", "Ads Video", "Internal Clip"];
         
         const STATUS_CONFIG = {
-            'todo': { label: 'Todo', colorClass: 'status-todo', icon: 'fa-circle' },
-            'doing': { label: 'Doing', colorClass: 'status-doing', icon: 'fa-spinner fa-spin' },
-            'draft': { label: 'Review', colorClass: 'status-draft', icon: 'fa-eye' },
-            'done': { label: 'Done', colorClass: 'status-done', icon: 'fa-check-circle' }
+            'todo': { label: 'รอดำเนินการ', colorClass: 'status-todo', icon: 'fa-circle' },
+            'doing': { label: 'กำลังทำ', colorClass: 'status-doing', icon: 'fa-spinner fa-spin' },
+            'draft': { label: 'รอรีวิว', colorClass: 'status-draft', icon: 'fa-eye' },
+            'done': { label: 'เสร็จสิ้น', colorClass: 'status-done', icon: 'fa-check-circle' }
         };
         
         // --- NEW KPI LIST BASED ON CSV ---
@@ -440,10 +437,10 @@
         function setupRealtimeListener() {
             const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
             onSnapshot(query(tasksRef), (snapshot) => {
-                // Check seed (v7 to force restore due to KPI updates)
-                if(snapshot.empty && !localStorage.getItem('seeded_v7')) {
+                // Check seed (v8 to force update C/S priority and correct KPI mapping)
+                if(snapshot.empty && !localStorage.getItem('seeded_v8')) {
                     seedInitialData(tasksRef);
-                    localStorage.setItem('seeded_v7', 'true');
+                    localStorage.setItem('seeded_v8', 'true');
                     return; 
                 }
                 
@@ -463,11 +460,11 @@
         }
 
         async function seedInitialData(ref) {
-            console.log("Seeding Full Data (Restored Version)...");
+            console.log("Seeding Full Data (Updated Priority & KPI)...");
             
             for (let i = 0; i < 12; i++) {
                 let targetNum = i + 2; if (targetNum > 12) targetNum = 1;
-                const targetName = launchMonths[i].split(' ')[0];
+                const targetName = LAUNCH_MONTHS_TH[i];
                 const doubleDigit = `${targetNum}.${targetNum}`;
                 const themes = themeDB[targetNum] || { double: "Campaign", mid: "MidMonth", payday: "Payday" };
 
@@ -476,33 +473,33 @@
                     // Main KV
                     { 
                         title: `Main Key Visual: ${doubleDigit} ${themes.double}`, 
-                        desc: `ออกแบบ KV หลักสำหรับแคมเปญ ${doubleDigit} (FB Cover, Line OA, Website Banner) - เน้นสี${i%2==0?'สดใส':'พาสเทล'}`, 
+                        desc: `ออกแบบ KV หลักสำหรับแคมเปญ ${doubleDigit} (FB Cover, Line OA, Website Banner)`, 
                         channel: "Online Platform", 
-                        priority: "C", 
-                        status: "doing", // Set to doing for some
+                        priority: "C", // Critical
+                        status: "doing", 
                         department: "Graphic",
-                        kpi: "Financials (1.1)", // Updated
+                        kpi: "Financials (1.1)", 
                         dueDate: new Date(2025, i, 5).toISOString().split('T')[0]
                     },
                     // Banner Sets
                     { 
                         title: `Banner Sets: Mid-Month Sale (${targetName})`, 
-                        desc: "ภาพโปรโมชั่นกลางเดือน 15+ SKU สินค้าขายดี ปรับโทนสีตามธีม", 
+                        desc: "ภาพโปรโมชั่นกลางเดือน 15+ SKU สินค้าขายดี", 
                         channel: "Online Platform", 
-                        priority: "H", 
+                        priority: "C", // High -> Critical
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "Profitability (1.2)", // Updated
+                        kpi: "Profitability (1.2)", 
                         dueDate: new Date(2025, i, 12).toISOString().split('T')[0]
                     },
                     { 
                         title: `Banner Sets: Payday Sale (${targetName})`, 
                         desc: "ภาพโปรโมชั่นสิ้นเดือน (เงินเดือนออก) เน้นจัดเซตคุ้มค่า", 
                         channel: "Online Platform", 
-                        priority: "H", 
+                        priority: "C", // High -> Critical
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "Financials (1.1)", // Updated
+                        kpi: "Financials (1.1)", 
                         dueDate: new Date(2025, i, 25).toISOString().split('T')[0]
                     },
                     // Social Content (Restored)
@@ -510,30 +507,30 @@
                         title: `Social Content: ${themes.double} Teaser`, 
                         desc: "Album Post (4+1) เล่าสตอรี่แคมเปญ + โปรโมชั่น Early Bird", 
                         channel: "Social Media", 
-                        priority: "M", 
-                        status: "draft", // Set to draft for some
+                        priority: "S", // Medium -> Support
+                        status: "draft", 
                         department: "Graphic",
-                        kpi: "Customer Exp (2.1)", // Updated
+                        kpi: "Customer Exp (2.1)", 
                         dueDate: new Date(2025, i, 1).toISOString().split('T')[0]
                     },
                     { 
                         title: `Review Content: Customer Feedback`, 
                         desc: "รวมรีวิวลูกค้า (แคปแชท/รูปรีวิว) ลง FB/IG Story", 
                         channel: "Social Media", 
-                        priority: "S", 
-                        status: "done", // Set to done for some
+                        priority: "S", // Support
+                        status: "done", 
                         department: "Graphic",
-                        kpi: "Market Presence (2.3)", // Updated
+                        kpi: "Market Presence (2.3)", 
                         dueDate: new Date(2025, i, 15).toISOString().split('T')[0]
                     },
                     { 
                         title: `Engagement Post: Quiz/Game`, 
                         desc: "โพสต์เกมชิงรางวัล หรือคำถามร่วมสนุกประจำเดือน", 
                         channel: "Social Media", 
-                        priority: "S", 
+                        priority: "S", // Support
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "N/A", // Updated
+                        kpi: "N/A", 
                         dueDate: new Date(2025, i, 20).toISOString().split('T')[0]
                     },
                     // Internal (Restored)
@@ -541,10 +538,10 @@
                         title: `Internal: Monthly Newsletter (${targetName})`, 
                         desc: "จดหมายข่าวอัปเดตกิจกรรมภายในบริษัท ส่งทางอีเมล", 
                         channel: "Internal/Support", 
-                        priority: "S", 
+                        priority: "S", // Support
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "IBC Collaboration (6.5)", // Updated
+                        kpi: "IBC Collaboration (6.5)", 
                         dueDate: new Date(2025, i, 28).toISOString().split('T')[0]
                     }
                 ];
@@ -555,20 +552,20 @@
                         title: `Shorts: ${doubleDigit} Unboxing`,
                         desc: "คลิปสั้นแกะกล่องสินค้าไฮไลท์ประจำแคมเปญ (Vertical 9:16)",
                         channel: "Short Video (Tiktok/Reels)",
-                        priority: "H",
+                        priority: "C", // High -> Critical
                         status: "todo",
                         department: "Video",
-                        kpi: "Financials (1.1)", // Updated
+                        kpi: "Financials (1.1)", 
                         dueDate: new Date(2025, i, 3).toISOString().split('T')[0]
                     },
                     {
                         title: `Reels: บรรยากาศแคมเปญ ${themes.double}`,
                         desc: "คลิปบรรยากาศ/เบื้องหลัง หรือ Mood & Tone สินค้า",
                         channel: "Short Video (Tiktok/Reels)",
-                        priority: "M",
+                        priority: "S", // Medium -> Support
                         status: "todo",
                         department: "Video",
-                        kpi: "Customer Exp (2.1)", // Updated
+                        kpi: "Customer Exp (2.1)", 
                         dueDate: new Date(2025, i, 10).toISOString().split('T')[0]
                     }
                 ];
@@ -620,8 +617,8 @@
 
         window.loadMonth = function(idx) {
             currentMonth = idx;
-            document.getElementById('currentMonthTitle').innerText = months[idx];
-            document.getElementById('launchMonthTitle').innerText = months[idx+1] || months[0];
+            document.getElementById('currentMonthTitle').innerText = MONTH_NAMES_TH[idx];
+            document.getElementById('launchMonthTitle').innerText = LAUNCH_MONTHS_TH[idx];
             refreshView();
         }
 
@@ -632,7 +629,7 @@
             // Check active team color
             const activeClass = currentDepartment === 'Graphic' ? 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-rose-100 text-rose-600 border-rose-200';
             
-            const html = months.map((m, i) => {
+            const html = MONTH_NAMES_TH.map((m, i) => {
                 // Filter count by current Department
                 const count = scheduleData[i].filter(t => t.department === currentDepartment).length;
                 const isActive = i === currentMonth;
@@ -647,7 +644,7 @@
             container.innerHTML = html;
 
             // Mobile
-            mobileContainer.innerHTML = months.map((m, i) => {
+            mobileContainer.innerHTML = MONTH_NAMES_TH.map((m, i) => {
                 const count = scheduleData[i].filter(t => t.department === currentDepartment).length;
                 const isActive = i === currentMonth;
                 const activeStyle = isActive ? (currentDepartment === 'Graphic' ? 'bg-sky-600 text-white border-sky-600' : 'bg-rose-600 text-white border-rose-600') : 'bg-white text-slate-600 border-slate-200';
@@ -665,7 +662,7 @@
             const container = document.getElementById('filterContainer');
             const channels = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
             
-            let html = `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg ${activeFilter==='all' ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 border border-slate-200'} transition" onclick="filterTasks('all')">All</button>`;
+            let html = `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg ${activeFilter==='all' ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 border border-slate-200'} transition" onclick="filterTasks('all')">งานทั้งหมด</button>`;
             
             channels.forEach(c => {
                 const isActive = activeFilter === c;
@@ -746,6 +743,9 @@
                 const dropdownId = `status-dropdown-${t.id}`;
                 const buttonId = `status-btn-${t.id}`;
 
+                // Priority Color Logic (Updated for C and S only)
+                const priorityColor = t.priority === 'C' ? 'text-red-500' : 'text-slate-400';
+
                 // Actions (Hidden if Guest)
                 const actions = isGuest ? '' : `
                     <div class="flex gap-2">
@@ -761,10 +761,10 @@
                             <i class="fa-solid ${sConf.icon}"></i> ${sConf.label} <i class="fa-solid fa-chevron-down opacity-50"></i>
                         </button>
                         <div id="${dropdownId}" class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden z-10 overflow-hidden">
-                            <div onclick="updateStatus('${t.id}', 'todo'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">Todo</div>
-                            <div onclick="updateStatus('${t.id}', 'doing'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">Doing</div>
-                            <div onclick="updateStatus('${t.id}', 'draft'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">Review</div>
-                            <div onclick="updateStatus('${t.id}', 'done'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">Done</div>
+                            <div onclick="updateStatus('${t.id}', 'todo'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">${STATUS_CONFIG.todo.label}</div>
+                            <div onclick="updateStatus('${t.id}', 'doing'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">${STATUS_CONFIG.doing.label}</div>
+                            <div onclick="updateStatus('${t.id}', 'draft'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">${STATUS_CONFIG.draft.label}</div>
+                            <div onclick="updateStatus('${t.id}', 'done'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">${STATUS_CONFIG.done.label}</div>
                         </div>
                        </div>`;
 
@@ -778,10 +778,13 @@
                 const kpiMatch = t.kpi ? t.kpi.match(/\((.*?)\)/) : null;
                 const kpiID = kpiMatch ? kpiMatch[1] : (t.kpi === 'N/A' ? 'N/A' : (t.kpi || 'N/A'));
                 
+                // --- KPI Tag Display Logic ---
                 const kpiDisplay = kpiID && kpiID !== 'N/A' ? 
-                    `<span class="text-[10px] text-slate-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 whitespace-nowrap">
+                    `<span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 whitespace-nowrap font-bold">
                         KPI: ${kpiID}
                     </span>` : '';
+                // -----------------------------
+
 
                 return `
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${currentDepartment === 'Graphic' ? 'border-l-sky-500' : 'border-l-rose-500'}">
@@ -797,7 +800,7 @@
                         <div class="flex flex-col items-end gap-1">
                             ${kpiDisplay}
                             ${dateDisplay}
-                            <span class="text-[10px] font-bold ${t.priority==='C'?'text-red-500':(t.priority==='H'?'text-orange-500':'text-slate-400')}">Priority: ${t.priority}</span>
+                            <span class="text-[10px] font-bold ${priorityColor}">Priority: ${t.priority}</span>
                         </div>
                     </div>
                 </div>`;
@@ -833,7 +836,7 @@
 
             // 3. Update Table
             const tbody = document.getElementById('dashboardTableBody');
-            tbody.innerHTML = months.map((m, i) => {
+            tbody.innerHTML = MONTH_NAMES_TH.map((m, i) => {
                 const data = monthlyProgress[i];
                 const total = data.total;
                 const pct = data.percent;
@@ -873,7 +876,7 @@
                         </td>
                         <td class="px-4 md:px-6 py-4 font-bold text-slate-700">${pct}%</td>
                         <td class="px-4 md:px-6 py-4 text-right">
-                            ${pct === 100 ? '<span class="text-green-600 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i> Done</span>' : 
+                            ${pct === 100 ? '<span class="text-green-600 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i> เสร็จสิ้น</span>' : 
                               pct > 0 ? `<span class="text-blue-600 text-xs font-bold">${done}/${total}</span>` : 
                               '<span class="text-slate-400 text-xs">-</span>'}
                         </td>
@@ -881,7 +884,7 @@
                     <tr id="details-${i}" class="hidden bg-slate-50/50">
                         <td colspan="5" class="px-4 md:px-6 py-4">
                             <div class="pl-2 md:pl-6 border-l-2 border-slate-200 space-y-1">
-                                ${data.tasks.length ? taskRows : '<p class="text-sm text-slate-400 italic pl-2">No tasks assigned for this team in this month.</p>'}
+                                ${data.tasks.length ? taskRows : '<p class="text-sm text-slate-400 italic pl-2">ไม่มีงานในหมวดนี้สำหรับเดือนนี้</p>'}
                             </div>
                         </td>
                     </tr>
@@ -896,9 +899,9 @@
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: months,
+                    labels: MONTH_NAMES_TH,
                     datasets: [{
-                        label: '% Completion',
+                        label: '% ความคืบหน้า',
                         data: chartData,
                         backgroundColor: chartData.map(p => p === 100 ? '#10b981' : chartColor),
                         borderRadius: 4
@@ -924,8 +927,9 @@
         
         function populateKpiSelect(selectedValue = 'N/A') {
             const kpiSelect = document.getElementById('newTaskKPI');
+            // Show full label in the dropdown
             kpiSelect.innerHTML = kpiOptions.map(opt => 
-                `<option value="${opt.value}" ${opt.value === selectedValue ? 'selected' : ''}>${opt.label}</option>`
+                `<option value="${opt.value}" ${opt.value === selectedValue ? 'selected' : ''}>${opt.value}</option>`
             ).join('');
         }
 
@@ -937,7 +941,7 @@
             document.getElementById('newTaskDueDate').value = '';
             
             // Populate Month
-            document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
+            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
             
             // Populate Channels based on Dept
             const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
@@ -960,7 +964,7 @@
             document.getElementById('newTaskDueDate').value = task.dueDate || '';
             
             // Populate Month
-            document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
+            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
             
             // Populate Channels ensuring current value exists
             const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
