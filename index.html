@@ -29,9 +29,9 @@
         .status-draft { background-color: #f5f3ff; color: #8b5cf6; border: 1px solid #ede9fe; }
         .status-done { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
 
-        /* Department Theme Colors */
-        .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; } /* Teal Green (ฟ้าเขียวอ่อน) */
-        .theme-video { --main-color-light: #f43f5e; --main-color-dark: #c20e2e; } /* Rose Red */
+        /* Department Theme Colors (Teal for Graphic, Sky for Video) */
+        .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; } /* Teal Green */
+        .theme-video { --main-color-light: #0ea5e9; --main-color-dark: #0369a1; } /* Sky Blue */
         
         .nav-btn.active { 
             background-color: var(--active-bg, #0ea5e9); 
@@ -104,8 +104,8 @@
                                 <div class="text-[10px] text-slate-400">งานภาพ/แบนเนอร์</div>
                             </div>
                         </div>
-                        <div onclick="switchDepartment('Video')" class="p-3 hover:bg-rose-50 cursor-pointer flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center"><i class="fa-solid fa-video"></i></div>
+                        <div onclick="switchDepartment('Video')" class="p-3 hover:bg-sky-50 cursor-pointer flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center"><i class="fa-solid fa-video"></i></div>
                             <div>
                                 <div class="text-xs font-bold text-slate-700">Video Editor</div>
                                 <div class="text-[10px] text-slate-400">งานตัดต่อ/คลิป</div>
@@ -634,15 +634,17 @@
             document.getElementById('mainBody').className = `min-h-screen flex flex-col pb-20 lg:pb-0 theme-${dept.toLowerCase()}`;
             
             // 2. Set Theme Variables & UI Labels
-            const themeColor = dept === 'Graphic' ? '#14b8a6' : '#f43f5e'; // Teal 500 / Rose 500
-            const colorClass = dept === 'Graphic' ? 'bg-teal-500' : 'bg-rose-500';
-            const iconClass = dept === 'Graphic' ? 'fa-palette' : 'fa-video';
-            const gradientClass = dept === 'Graphic' ? 'from-teal-500 to-teal-600' : 'from-rose-500 to-pink-600';
-            const btnClass = dept === 'Graphic' ? 'bg-teal-500 hover:bg-teal-600' : 'bg-rose-500 hover:bg-rose-600';
+            // LOGIC SWAP: Graphic (teal) and Video (sky/blue)
+            const isGraphic = dept === 'Graphic';
+            const themeColor = isGraphic ? '#14b8a6' : '#0ea5e9'; // Graphic=Teal, Video=Sky
+            const colorClass = isGraphic ? 'bg-teal-500' : 'bg-sky-500';
+            const iconClass = isGraphic ? 'fa-palette' : 'fa-video';
+            const gradientClass = isGraphic ? 'from-teal-500 to-teal-600' : 'from-sky-500 to-blue-600';
+            const btnClass = isGraphic ? 'bg-teal-500 hover:bg-teal-600' : 'bg-sky-500 hover:bg-sky-600';
 
             document.documentElement.style.setProperty('--active-bg', themeColor);
             
-            document.getElementById('deptName').innerText = dept === 'Graphic' ? 'Graphic Team' : 'Video Editor';
+            document.getElementById('deptName').innerText = isGraphic ? 'Graphic Team' : 'Video Editor';
             document.getElementById('deptIcon').className = `w-6 h-6 rounded flex items-center justify-center text-white text-xs ${colorClass}`;
             document.getElementById('deptIcon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
             document.getElementById('headerCard').className = `bg-gradient-to-r ${gradientClass} text-white rounded-xl p-5 md:p-6 shadow-lg flex justify-between items-center relative overflow-hidden transition-colors duration-500`;
@@ -683,7 +685,7 @@
             const mobileContainer = document.getElementById('mobileMonthNavigator');
             
             // Check active team color
-            const activeColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
+            const activeColor = currentDepartment === 'Graphic' ? 'teal' : 'sky'; // Graphic=Teal, Video=Sky
             const activeClass = `bg-${activeColor}-100 text-${activeColor}-600 border-${activeColor}-200`;
             
             const html = MONTH_NAMES_TH.map((m, i) => {
@@ -701,7 +703,7 @@
             container.innerHTML = html;
 
             // Mobile
-            const mobileActiveColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
+            const mobileActiveColor = currentDepartment === 'Graphic' ? 'teal' : 'sky'; // Graphic=Teal, Video=Sky
             mobileContainer.innerHTML = MONTH_NAMES_TH.map((m, i) => {
                 const count = scheduleData[i].filter(t => t.department === currentDepartment).length;
                 const isActive = i === currentMonth;
@@ -724,7 +726,7 @@
             
             channels.forEach(c => {
                 const isActive = activeFilter === c;
-                const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
+                const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'sky'; // Graphic=Teal, Video=Sky
                 const activeClass = `bg-${themeColor}-600 text-white`;
                 
                 // Show only the first word for filter button
@@ -816,6 +818,10 @@
                 </div>`;
                 return;
             }
+            
+            // Determine border color for current department
+            const borderColor = currentDepartment === 'Graphic' ? 'border-l-teal-500' : 'border-l-sky-500'; // Graphic=Teal, Video=Sky
+            const hoverColor = currentDepartment === 'Graphic' ? 'hover:text-teal-500' : 'hover:text-sky-500';
 
             container.innerHTML = filtered.map(t => {
                 // Status Logic
@@ -829,7 +835,7 @@
                 // Actions (Hidden if Guest)
                 const actions = isGuest ? '' : `
                     <div class="flex gap-2">
-                        <button onclick="openEditTaskModal('${t.id}')" class="text-slate-300 hover:text-teal-500"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="openEditTaskModal('${t.id}')" class="text-slate-300 ${hoverColor}"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
                     </div>`; 
                 
@@ -867,7 +873,7 @@
 
 
                 return `
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${currentDepartment === 'Graphic' ? 'border-l-teal-500' : 'border-l-rose-500'}">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor}">
                     <div class="flex justify-between items-start mb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded">${t.channel}</span>
                         ${actions}
@@ -894,7 +900,7 @@
             let monthlyProgress = [];
             
             document.getElementById('dashboardTitle').innerText = `Dashboard: ${currentDepartment} Team`;
-            const chartColor = currentDepartment === 'Graphic' ? '#14b8a6' : '#f43f5e'; // Teal 500
+            const chartColor = currentDepartment === 'Graphic' ? '#14b8a6' : '#0ea5e9'; // Graphic=Teal, Video=Sky
 
             scheduleData.forEach((monthTasks, idx) => {
                 const deptTasks = monthTasks.filter(t => t.department === currentDepartment);
@@ -913,6 +919,8 @@
             document.getElementById('stat-doing').innerText = counts.doing;
             document.getElementById('stat-draft').innerText = counts.draft;
             document.getElementById('stat-done').innerText = counts.done;
+            
+            const hoverBgColor = currentDepartment === 'Graphic' ? 'hover:bg-teal-50' : 'hover:bg-sky-50'; // Graphic=Teal, Video=Sky
 
             // 3. Update Table
             const tbody = document.getElementById('dashboardTableBody');
@@ -943,7 +951,7 @@
                 }).join('');
 
                 return `
-                    <tr class="bg-white border-b border-slate-50 hover:bg-teal-50 cursor-pointer transition-colors" onclick="toggleMonthDetails(${i})">
+                    <tr class="bg-white border-b border-slate-50 ${hoverBgColor} cursor-pointer transition-colors" onclick="toggleMonthDetails(${i})">
                         <td class="px-4 md:px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
                             <i id="chevron-${i}" class="fa-solid fa-chevron-right text-slate-400 text-xs transition-transform duration-200"></i>
                             ${m}
@@ -1031,7 +1039,7 @@
             populateKpiSelect('N/A');
 
             // Apply current department color theme to modal button
-            const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
+            const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'sky'; // Graphic=Teal, Video=Sky
             document.getElementById('newTaskDueDate').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
             document.getElementById('newTaskTitle').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
             document.getElementById('newTaskDesc').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
@@ -1068,7 +1076,7 @@
             document.getElementById('newTaskPriority').value = task.priority;
 
             // Apply current department color theme to modal button
-            const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
+            const themeColor = currentDepartment === 'Graphic' ? 'teal' : 'sky'; // Graphic=Teal, Video=Sky
             document.getElementById('newTaskDueDate').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
             document.getElementById('newTaskTitle').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
             document.getElementById('newTaskDesc').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
@@ -1140,9 +1148,9 @@
             document.getElementById('view-planner').classList.add('hidden');
             document.getElementById('view-dashboard').classList.add('hidden');
             
-            // Determine theme color for active state
-            const themeColorClass = currentDepartment === 'Graphic' ? 'bg-teal-500' : 'bg-rose-500';
-            const themeHoverClass = currentDepartment === 'Graphic' ? 'hover:bg-teal-600' : 'hover:bg-rose-600';
+            // Determine theme color class for current department (Graphic=Teal, Video=Sky)
+            const themeColorClass = currentDepartment === 'Graphic' ? 'bg-teal-500' : 'bg-sky-500';
+            const themeHoverClass = currentDepartment === 'Graphic' ? 'hover:bg-teal-600' : 'hover:bg-sky-600';
 
 
             // Remove 'active' class and reset style for all nav buttons
@@ -1150,7 +1158,8 @@
                 if (btn.id.startsWith('tab-')) {
                     btn.classList.remove('active');
                     // Reset to default inactive style (white background, slate text, border)
-                    btn.className = btn.className.replace(themeColorClass, 'bg-white'); // Clean up active color
+                    // Ensure to remove BOTH teal and sky colors before setting default
+                    btn.className = btn.className.replace(/bg-teal-\d00|bg-sky-\d00|bg-rose-\d00/, 'bg-white');
                     btn.classList.add('text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
                     btn.classList.remove('font-medium', 'text-white', 'shadow-sm', 'shadow-green-200', 'transition', 'transform', 'active:scale-95'); // Clean up old classes
                 }
