@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Production Planner 2025 (Graphic & Video)</title>
+    
+    <!-- FAVICON: ใช้ลิงก์โลโก้จาก GitHub ของคุณ -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -26,7 +30,7 @@
         .status-done { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
 
         /* Department Theme Colors */
-        .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; } /* Teal Green */
+        .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; } /* Teal Green (ฟ้าเขียวอ่อน) */
         .theme-video { --main-color-light: #f43f5e; --main-color-dark: #c20e2e; } /* Rose Red */
         
         .nav-btn.active { 
@@ -45,7 +49,14 @@
     <div id="loginOverlay" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center fade-in p-4 overflow-y-auto">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-sm my-auto">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4">P</div>
+                <!-- LOGO/ICON (IMAGE FROM GITHUB URL) -->
+                <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4 p-2">
+                    <!-- ใช้ลิงก์โลโก้จาก GitHub ของคุณ -->
+                    <img src="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png" 
+                         alt="Production Planner Logo" 
+                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/14b8a6/ffffff?text=Logo';" 
+                         class="w-full h-full object-contain rounded-lg">
+                </div>
                 <h2 class="text-2xl font-bold text-slate-800">Production Planner</h2>
                 <p class="text-slate-500 text-sm">Graphic & Video Team</p>
             </div>
@@ -388,7 +399,7 @@
         };
 
         const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
-        // UPDATED: Change Video Channels to Short, Online, Offline, Internal
+        // Video Channels used in latest versions
         const videoChannels = ["Short Video (Tiktok/Reels)", "Online Platform", "Offline/Print", "Internal Clip"];
         
         const STATUS_CONFIG = {
@@ -623,7 +634,7 @@
             document.getElementById('mainBody').className = `min-h-screen flex flex-col pb-20 lg:pb-0 theme-${dept.toLowerCase()}`;
             
             // 2. Set Theme Variables & UI Labels
-            const themeColor = dept === 'Graphic' ? '#14b8a6' : '#f43f5e'; // Teal 500
+            const themeColor = dept === 'Graphic' ? '#14b8a6' : '#f43f5e'; // Teal 500 / Rose 500
             const colorClass = dept === 'Graphic' ? 'bg-teal-500' : 'bg-rose-500';
             const iconClass = dept === 'Graphic' ? 'fa-palette' : 'fa-video';
             const gradientClass = dept === 'Graphic' ? 'from-teal-500 to-teal-600' : 'from-rose-500 to-pink-600';
@@ -690,10 +701,11 @@
             container.innerHTML = html;
 
             // Mobile
+            const mobileActiveColor = currentDepartment === 'Graphic' ? 'teal' : 'rose';
             mobileContainer.innerHTML = MONTH_NAMES_TH.map((m, i) => {
                 const count = scheduleData[i].filter(t => t.department === currentDepartment).length;
                 const isActive = i === currentMonth;
-                const activeStyle = isActive ? `bg-${activeColor}-600 text-white border-${activeColor}-600` : 'bg-white text-slate-600 border-slate-200';
+                const activeStyle = isActive ? `bg-${mobileActiveColor}-600 text-white border-${mobileActiveColor}-600` : 'bg-white text-slate-600 border-slate-200';
                 return `<button onclick="loadMonth(${i})" class="shrink-0 px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 transition-all ${activeStyle}">
                     <span>${m}</span>
                     <span class="text-[9px] bg-white/20 px-1.5 rounded-full ${isActive?'text-white':'text-slate-400'}">${count}</span>
@@ -819,7 +831,7 @@
                     <div class="flex gap-2">
                         <button onclick="openEditTaskModal('${t.id}')" class="text-slate-300 hover:text-teal-500"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
-                    </div>`; // MODIFIED: Changed deleteTask to promptDeleteTask
+                    </div>`; 
                 
                 // Status Dropdown (Disabled if Guest) - Changed to explicit click handler
                 const statusBtn = isGuest 
