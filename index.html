@@ -333,6 +333,7 @@
         let currentMonth = 0;
         let activeFilter = 'all';
         let chartInstance = null; // Global chart instance for dashboard
+        let openDropdownId = null; // Global state for one-at-a-time dropdowns
 
         // Constants
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -681,6 +682,51 @@
             renderFilters();
             renderTasks();
         }
+        
+        // --- Dropdown Click Management ---
+        window.toggleStatusDropdown = function(event, dropdownId) {
+            event.stopPropagation();
+            const dropdown = document.getElementById(dropdownId);
+            
+            // Close the currently open one, if any (and it's not the current one)
+            if (openDropdownId && openDropdownId !== dropdownId) {
+                document.getElementById(openDropdownId)?.classList.add('hidden');
+            }
+            
+            // Toggle the current one
+            if (dropdown.classList.contains('hidden')) { 
+                dropdown.classList.remove('hidden'); 
+                openDropdownId = dropdownId; 
+            } else { 
+                dropdown.classList.add('hidden'); 
+                openDropdownId = null; 
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            if (openDropdownId) {
+                const dropdown = document.getElementById(openDropdownId);
+                // Check if the click target is outside the currently open dropdown
+                // We use a safe check by making sure the element itself or its parent up to 3 levels is not the button/dropdown
+                let isOutside = true;
+                let target = event.target;
+                for(let i=0; i<4; i++) {
+                    if (target === dropdown || target.id === openDropdownId.replace('status-dropdown-', 'status-btn-')) {
+                        isOutside = false;
+                        break;
+                    }
+                    target = target.parentElement;
+                    if (!target) break;
+                }
+
+                if (isOutside) {
+                    dropdown.classList.add('hidden');
+                    openDropdownId = null;
+                }
+            }
+        });
+        
+        // --- End Dropdown Click Management ---
 
         window.renderTasks = function() {
             const allTasks = scheduleData[currentMonth].filter(t => t.department === currentDepartment);
@@ -697,6 +743,8 @@
             container.innerHTML = filtered.map(t => {
                 // Status Logic
                 const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
+                const dropdownId = `status-dropdown-${t.id}`;
+                const buttonId = `status-btn-${t.id}`;
 
                 // Actions (Hidden if Guest)
                 const actions = isGuest ? '' : `
@@ -705,18 +753,18 @@
                         <button onclick="deleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
                     </div>`;
                 
-                // Status Dropdown (Disabled if Guest)
+                // Status Dropdown (Disabled if Guest) - Changed to explicit click handler
                 const statusBtn = isGuest 
                     ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}"><i class="fa-solid ${sConf.icon}"></i> ${sConf.label}</span>`
-                    : `<div class="relative group">
-                        <button class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
+                    : `<div class="relative">
+                        <button id="${buttonId}" onclick="toggleStatusDropdown(event, '${dropdownId}')" class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
                             <i class="fa-solid ${sConf.icon}"></i> ${sConf.label} <i class="fa-solid fa-chevron-down opacity-50"></i>
                         </button>
-                        <div class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden group-hover:block z-10 overflow-hidden">
-                            <div onclick="updateStatus('${t.id}', 'todo')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">Todo</div>
-                            <div onclick="updateStatus('${t.id}', 'doing')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">Doing</div>
-                            <div onclick="updateStatus('${t.id}', 'draft')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">Review</div>
-                            <div onclick="updateStatus('${t.id}', 'done')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">Done</div>
+                        <div id="${dropdownId}" class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden z-10 overflow-hidden">
+                            <div onclick="updateStatus('${t.id}', 'todo'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">Todo</div>
+                            <div onclick="updateStatus('${t.id}', 'doing'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">Doing</div>
+                            <div onclick="updateStatus('${t.id}', 'draft'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">Review</div>
+                            <div onclick="updateStatus('${t.id}', 'done'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">Done</div>
                         </div>
                        </div>`;
 
@@ -726,10 +774,13 @@
                         <i class="fa-regular fa-clock mr-1"></i>${new Date(t.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}
                     </span>` : '';
                 
-                // KPI Display
-                const kpiDisplay = t.kpi ? 
+                // KPI Display (Updated to show X.X numerical ID)
+                const kpiMatch = t.kpi ? t.kpi.match(/\((.*?)\)/) : null;
+                const kpiID = kpiMatch ? kpiMatch[1] : (t.kpi === 'N/A' ? 'N/A' : (t.kpi || 'N/A'));
+                
+                const kpiDisplay = kpiID && kpiID !== 'N/A' ? 
                     `<span class="text-[10px] text-slate-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 whitespace-nowrap">
-                        KPI: ${t.kpi.split(' ')[0]}
+                        KPI: ${kpiID}
                     </span>` : '';
 
                 return `
