@@ -186,14 +186,58 @@
             </section>
         </div>
 
-        <!-- VIEW 2: DASHBOARD -->
+        <!-- VIEW 2: DASHBOARD (Updated to include charts and tables) -->
         <div id="view-dashboard" class="hidden fade-in space-y-6 pb-20 lg:pb-0">
-             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 text-center py-20">
-                <div class="inline-block p-4 rounded-full bg-slate-100 mb-4 text-slate-400">
-                    <i class="fa-solid fa-chart-column text-4xl"></i>
+            <h3 id="dashboardTitle" class="text-2xl font-bold text-slate-800">Dashboard: Graphic Team</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 col-span-2">
+                    <h4 class="font-bold text-slate-800 mb-4 text-lg">ภาพรวมงานรายเดือน (Monthly Completion)</h4>
+                    <div class="h-64"><canvas id="monthlyChart"></canvas></div>
                 </div>
-                <h3 class="text-xl font-bold text-slate-700">Dashboard is updating...</h3>
-                <p class="text-slate-500 text-sm">กำลังปรับปรุงข้อมูลสรุปสำหรับทั้ง 2 ทีม</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
+                    <h4 class="font-bold text-slate-800 text-lg">สถานะปัจจุบัน (Current Status)</h4>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <span class="text-slate-600"><i class="fa-solid fa-circle text-slate-400 mr-2"></i>To Do</span>
+                            <span class="font-bold text-lg text-slate-700" id="stat-todo">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <span class="text-blue-700"><i class="fa-solid fa-spinner text-blue-500 mr-2"></i>Doing</span>
+                            <span class="font-bold text-lg text-blue-700" id="stat-doing">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                            <span class="text-purple-700"><i class="fa-solid fa-clock text-purple-500 mr-2"></i>Review</span>
+                            <span class="font-bold text-lg text-purple-700" id="stat-draft">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-100">
+                            <span class="text-green-700"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>Completed</span>
+                            <span class="font-bold text-lg text-green-700" id="stat-done">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h4 class="font-bold text-slate-700">รายละเอียดความคืบหน้า (Progress Details)</h4>
+                        <p class="text-xs text-slate-400 mt-1 font-light">แตะที่เดือนเพื่อดูรายละเอียดงานทั้งหมด</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left min-w-[600px]">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th class="px-4 md:px-6 py-3 w-1/4">เดือน</th>
+                                <th class="px-4 md:px-6 py-3">งานทั้งหมด</th>
+                                <th class="px-4 md:px-6 py-3 w-1/3">ความคืบหน้า</th>
+                                <th class="px-4 md:px-6 py-3">%</th>
+                                <th class="px-4 md:px-6 py-3 text-right">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardTableBody" class="divide-y divide-slate-100 font-light"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
@@ -245,6 +289,19 @@
                         </select>
                     </div>
                 </div>
+                 <!-- NEW KPI INPUT FIELD -->
+                 <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">KPI Reference</label>
+                    <select id="newTaskKPI" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+                        <option value="Financials (1.1)">Financials (1.1)</option>
+                        <option value="Profitability (1.2)">Profitability (1.2)</option>
+                        <option value="Budget (1.3)">Budget (1.3)</option>
+                        <option value="Customer & Strategy (2.1)">Customer & Strategy (2.1)</option>
+                        <option value="Risk & Compliance (5.1)">Risk & Compliance (5.1)</option>
+                        <option value="Strategy (6.5)">Strategy (6.5)</option>
+                        <option value="N/A">N/A</option>
+                    </select>
+                </div>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
                 <button onclick="closeAddTaskModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition">ยกเลิก</button>
@@ -281,6 +338,7 @@
         let scheduleData = Array.from({length: 12}, () => []);
         let currentMonth = 0;
         let activeFilter = 'all';
+        let chartInstance = null; // Global chart instance for dashboard
 
         // Constants
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -305,6 +363,13 @@
 
         const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
         const videoChannels = ["Short Video (Tiktok/Reels)", "Youtube Long Form", "Ads Video", "Internal Clip"];
+        
+        const STATUS_CONFIG = {
+            'todo': { label: 'Todo', colorClass: 'status-todo', icon: 'fa-circle' },
+            'doing': { label: 'Doing', colorClass: 'status-doing', icon: 'fa-spinner fa-spin' },
+            'draft': { label: 'Review', colorClass: 'status-draft', icon: 'fa-eye' },
+            'done': { label: 'Done', colorClass: 'status-done', icon: 'fa-check-circle' }
+        };
 
         // --- Auth Functions ---
         window.handleLogin = async (e) => {
@@ -368,12 +433,6 @@
                     return; 
                 }
                 
-                // If not empty but localStorage v6 missing (user might want to force restore manually, can be added later)
-                // For now, if DB has data, we load it. 
-                // IF user sees "missing" data, it might mean they are connecting to a new DB path or data was wiped. 
-                // But since appId is constant, data should be there. 
-                // The issue might be filtering. I added department filter logic below.
-
                 scheduleData = Array.from({length: 12}, () => []);
                 snapshot.forEach((doc) => {
                     const t = { id: doc.id, ...doc.data() };
@@ -408,6 +467,7 @@
                         priority: "C", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Financials (1.1)",
                         dueDate: new Date(2025, i, 5).toISOString().split('T')[0]
                     },
                     // Banner Sets
@@ -418,6 +478,7 @@
                         priority: "H", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Profitability (1.2)",
                         dueDate: new Date(2025, i, 12).toISOString().split('T')[0]
                     },
                     { 
@@ -427,6 +488,7 @@
                         priority: "H", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Financials (1.1)",
                         dueDate: new Date(2025, i, 25).toISOString().split('T')[0]
                     },
                     // Social Content (Restored)
@@ -437,6 +499,7 @@
                         priority: "M", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Customer & Strategy (2.1)",
                         dueDate: new Date(2025, i, 1).toISOString().split('T')[0]
                     },
                     { 
@@ -446,6 +509,7 @@
                         priority: "S", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Customer & Strategy (2.3)",
                         dueDate: new Date(2025, i, 15).toISOString().split('T')[0]
                     },
                     { 
@@ -455,6 +519,7 @@
                         priority: "S", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "N/A",
                         dueDate: new Date(2025, i, 20).toISOString().split('T')[0]
                     },
                     // Internal (Restored)
@@ -465,6 +530,7 @@
                         priority: "S", 
                         status: "todo", 
                         department: "Graphic",
+                        kpi: "Strategy (6.5)",
                         dueDate: new Date(2025, i, 28).toISOString().split('T')[0]
                     }
                 ];
@@ -478,6 +544,7 @@
                         priority: "H",
                         status: "todo",
                         department: "Video",
+                        kpi: "Financials (1.1)",
                         dueDate: new Date(2025, i, 3).toISOString().split('T')[0]
                     },
                     {
@@ -487,6 +554,7 @@
                         priority: "M",
                         status: "todo",
                         department: "Video",
+                        kpi: "Customer & Strategy (2.1)",
                         dueDate: new Date(2025, i, 10).toISOString().split('T')[0]
                     }
                 ];
@@ -496,7 +564,7 @@
                 for (const t of allTasks) {
                     await addDoc(ref, {
                         ...t,
-                        campaignTheme: themes.double,
+                        campaignTheme: themes.double || "General",
                         monthIndex: i,
                         createdAt: new Date().toISOString()
                     });
@@ -530,6 +598,10 @@
             renderSidebar();
             renderFilters();
             renderTasks();
+            // Render dashboard only if it's the active view
+            if(!document.getElementById('view-dashboard').classList.contains('hidden')) {
+                renderDashboard();
+            }
         }
 
         window.loadMonth = function(idx) {
@@ -611,10 +683,7 @@
 
             container.innerHTML = filtered.map(t => {
                 // Status Logic
-                let sClass = 'status-todo', sLabel = 'Todo', sIcon = 'fa-circle';
-                if(t.status === 'doing') { sClass = 'status-doing'; sLabel = 'Doing'; sIcon = 'fa-spinner fa-spin'; }
-                if(t.status === 'draft') { sClass = 'status-draft'; sLabel = 'Review'; sIcon = 'fa-eye'; }
-                if(t.status === 'done') { sClass = 'status-done'; sLabel = 'Done'; sIcon = 'fa-check'; }
+                const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
 
                 // Actions (Hidden if Guest)
                 const actions = isGuest ? '' : `
@@ -625,10 +694,10 @@
                 
                 // Status Dropdown (Disabled if Guest)
                 const statusBtn = isGuest 
-                    ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sClass}"><i class="fa-solid ${sIcon}"></i> ${sLabel}</span>`
+                    ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}"><i class="fa-solid ${sConf.icon}"></i> ${sConf.label}</span>`
                     : `<div class="relative group">
-                        <button class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sClass}">
-                            <i class="fa-solid ${sIcon}"></i> ${sLabel} <i class="fa-solid fa-chevron-down opacity-50"></i>
+                        <button class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
+                            <i class="fa-solid ${sConf.icon}"></i> ${sConf.label} <i class="fa-solid fa-chevron-down opacity-50"></i>
                         </button>
                         <div class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden group-hover:block z-10 overflow-hidden">
                             <div onclick="updateStatus('${t.id}', 'todo')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">Todo</div>
@@ -643,6 +712,12 @@
                     `<span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                         <i class="fa-regular fa-clock mr-1"></i>${new Date(t.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}
                     </span>` : '';
+                
+                // KPI Display
+                const kpiDisplay = t.kpi ? 
+                    `<span class="text-[10px] text-slate-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 whitespace-nowrap">
+                        KPI: ${t.kpi.split(' ')[0]}
+                    </span>` : '';
 
                 return `
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${currentDepartment === 'Graphic' ? 'border-l-sky-500' : 'border-l-rose-500'}">
@@ -656,12 +731,129 @@
                     <div class="flex justify-between items-end border-t border-slate-50 pt-3">
                         ${statusBtn}
                         <div class="flex flex-col items-end gap-1">
+                            ${kpiDisplay}
                             ${dateDisplay}
-                            <span class="text-[10px] font-bold ${t.priority==='C'?'text-red-500':'text-slate-400'}">Priority: ${t.priority}</span>
+                            <span class="text-[10px] font-bold ${t.priority==='C'?'text-red-500':(t.priority==='H'?'text-orange-500':'text-slate-400')}">Priority: ${t.priority}</span>
                         </div>
                     </div>
                 </div>`;
             }).join('');
+        }
+        
+        // --- DASHBOARD RENDER ---
+        window.renderDashboard = function() {
+            // 1. Filter tasks for the current department
+            let counts = { todo:0, doing:0, draft:0, done:0 };
+            let monthlyProgress = [];
+            
+            document.getElementById('dashboardTitle').innerText = `Dashboard: ${currentDepartment} Team`;
+            const chartColor = currentDepartment === 'Graphic' ? '#0ea5e9' : '#f43f5e';
+
+            scheduleData.forEach((monthTasks, idx) => {
+                const deptTasks = monthTasks.filter(t => t.department === currentDepartment);
+                
+                let mDone = 0;
+                deptTasks.forEach(t => {
+                    if(counts[t.status] !== undefined) counts[t.status]++;
+                    if(t.status === 'done') mDone++;
+                });
+                let percent = deptTasks.length > 0 ? Math.round((mDone / deptTasks.length) * 100) : 0;
+                monthlyProgress.push({ total: deptTasks.length, done: mDone, percent: percent, tasks: deptTasks });
+            });
+
+            // 2. Update Status Counts
+            document.getElementById('stat-todo').innerText = counts.todo;
+            document.getElementById('stat-doing').innerText = counts.doing;
+            document.getElementById('stat-draft').innerText = counts.draft;
+            document.getElementById('stat-done').innerText = counts.done;
+
+            // 3. Update Table
+            const tbody = document.getElementById('dashboardTableBody');
+            tbody.innerHTML = months.map((m, i) => {
+                const data = monthlyProgress[i];
+                const total = data.total;
+                const pct = data.percent;
+                const done = data.done;
+                
+                let barColor = 'bg-slate-200';
+                if(pct > 0) barColor = 'bg-blue-500';
+                if(pct === 100) barColor = 'bg-green-500';
+
+                const taskRows = data.tasks.map(t => {
+                    const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
+                    
+                    return `
+                        <div class="flex justify-between items-center p-2.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition mb-1 last:mb-0">
+                            <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-bold uppercase text-slate-400 w-16">${t.channel.split(' ')[0]}</span>
+                                <span class="text-sm font-medium text-slate-700 truncate max-w-[150px]">${t.title}</span>
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full ${sConf.colorClass} border flex items-center gap-1 whitespace-nowrap">
+                                <i class="fa-solid ${sConf.icon}"></i> ${sConf.label}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="bg-white border-b border-slate-50 hover:bg-sky-50 cursor-pointer transition-colors" onclick="toggleMonthDetails(${i})">
+                        <td class="px-4 md:px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
+                            <i id="chevron-${i}" class="fa-solid fa-chevron-right text-slate-400 text-xs transition-transform duration-200"></i>
+                            ${m}
+                        </td>
+                        <td class="px-4 md:px-6 py-4 text-slate-600">${total}</td>
+                        <td class="px-4 md:px-6 py-4">
+                            <div class="w-full bg-slate-200 rounded-full h-2.5">
+                                <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                            </div>
+                        </td>
+                        <td class="px-4 md:px-6 py-4 font-bold text-slate-700">${pct}%</td>
+                        <td class="px-4 md:px-6 py-4 text-right">
+                            ${pct === 100 ? '<span class="text-green-600 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i> Done</span>' : 
+                              pct > 0 ? `<span class="text-blue-600 text-xs font-bold">${done}/${total}</span>` : 
+                              '<span class="text-slate-400 text-xs">-</span>'}
+                        </td>
+                    </tr>
+                    <tr id="details-${i}" class="hidden bg-slate-50/50">
+                        <td colspan="5" class="px-4 md:px-6 py-4">
+                            <div class="pl-2 md:pl-6 border-l-2 border-slate-200 space-y-1">
+                                ${data.tasks.length ? taskRows : '<p class="text-sm text-slate-400 italic pl-2">No tasks assigned for this team in this month.</p>'}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 4. Update Chart
+            const chartData = monthlyProgress.map(d => d.percent);
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: '% Completion',
+                        data: chartData,
+                        backgroundColor: chartData.map(p => p === 100 ? '#10b981' : chartColor),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        window.toggleMonthDetails = function(idx) {
+            const row = document.getElementById(`details-${idx}`);
+            const chevron = document.getElementById(`chevron-${idx}`);
+            if(row.classList.contains('hidden')) { row.classList.remove('hidden'); chevron.classList.add('rotate-90'); } 
+            else { row.classList.add('hidden'); chevron.classList.remove('rotate-90'); }
         }
 
         // --- CRUD ---
@@ -671,6 +863,7 @@
             document.getElementById('newTaskTitle').value = '';
             document.getElementById('newTaskDesc').value = '';
             document.getElementById('newTaskDueDate').value = '';
+            document.getElementById('newTaskKPI').value = 'N/A'; // Default KPI
             
             // Populate Month
             document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
@@ -683,7 +876,7 @@
         }
 
         window.openEditTaskModal = function(id) {
-            const task = scheduleData[currentMonth].find(t => t.id === id);
+            const task = scheduleData.flat().find(t => t.id === id); // Find task globally
             if(!task) return;
             
             document.getElementById('editingTaskId').value = id;
@@ -691,6 +884,7 @@
             document.getElementById('newTaskTitle').value = task.title;
             document.getElementById('newTaskDesc').value = task.desc;
             document.getElementById('newTaskDueDate').value = task.dueDate || '';
+            document.getElementById('newTaskKPI').value = task.kpi || 'N/A'; // Set KPI
             
             document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
             
@@ -710,6 +904,9 @@
             const title = document.getElementById('newTaskTitle').value;
             
             if(!title) { alert("ใส่ชื่อด้วยครับ"); return; }
+            
+            // Get all fields including KPI
+            const kpi = document.getElementById('newTaskKPI').value; 
 
             const data = {
                 title,
@@ -718,7 +915,8 @@
                 priority: document.getElementById('newTaskPriority').value,
                 monthIndex: parseInt(document.getElementById('newTaskMonth').value),
                 dueDate: document.getElementById('newTaskDueDate').value,
-                department: currentDepartment // Important: Save which team this belongs to
+                department: currentDepartment,
+                kpi: kpi // Include KPI in saved data
             };
 
             const ref = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
@@ -745,7 +943,15 @@
         window.switchView = (v) => {
             document.getElementById('view-planner').classList.add('hidden');
             document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('tab-planner').classList.remove('active');
+            document.getElementById('tab-dashboard').classList.remove('active');
+            
+            document.getElementById('tab-'+v).classList.add('active');
             document.getElementById('view-'+v).classList.remove('hidden');
+            
+            if (v === 'dashboard') {
+                renderDashboard();
+            }
         }
     </script>
 </body>
