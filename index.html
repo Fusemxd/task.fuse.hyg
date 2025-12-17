@@ -293,13 +293,7 @@
                  <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">KPI Reference</label>
                     <select id="newTaskKPI" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-                        <option value="Financials (1.1)">Financials (1.1)</option>
-                        <option value="Profitability (1.2)">Profitability (1.2)</option>
-                        <option value="Budget (1.3)">Budget (1.3)</option>
-                        <option value="Customer & Strategy (2.1)">Customer & Strategy (2.1)</option>
-                        <option value="Risk & Compliance (5.1)">Risk & Compliance (5.1)</option>
-                        <option value="Strategy (6.5)">Strategy (6.5)</option>
-                        <option value="N/A">N/A</option>
+                        <!-- KPI options will be injected by JavaScript -->
                     </select>
                 </div>
             </div>
@@ -370,6 +364,25 @@
             'draft': { label: 'Review', colorClass: 'status-draft', icon: 'fa-eye' },
             'done': { label: 'Done', colorClass: 'status-done', icon: 'fa-check-circle' }
         };
+        
+        // --- NEW KPI LIST BASED ON CSV ---
+        const kpiOptions = [
+            { value: "Financials (1.1)", label: "1.1 (P&L, Cash Flow)" },
+            { value: "Profitability (1.2)", label: "1.2 (Product Profitability)" },
+            { value: "Reforecasting (1.3)", label: "1.3 (Reforecasting/Budget)" },
+            { value: "Pricing/Cost (1.4)", label: "1.4 (Pricing/Cost Strategy)" },
+            { value: "Margin/Cost (1.5)", label: "1.5 (Margin/Cost Reduction)" },
+            { value: "New Products (1.6)", label: "1.6 (New Product Revenue)" },
+            { value: "Customer Exp (2.1)", label: "2.1 (Customer Experience)" },
+            { value: "Retention/Loyalty (2.2)", label: "2.2 (Retention/Loyalty)" },
+            { value: "Market Presence (2.3)", label: "2.3 (Market Presence)" },
+            { value: "Non-Compliance (5.1)", label: "5.1 (Zero Non-Compliance)" },
+            { value: "SOP Alignment (5.3)", label: "5.3 (SOP Alignment)" },
+            { value: "Cross-BU Synergy (6.1)", label: "6.1 (Cross-BU Synergy)" },
+            { value: "IBC Collaboration (6.5)", label: "6.5 (IBC Collaboration)" },
+            { value: "N/A", label: "N/A" }
+        ];
+
 
         // --- Auth Functions ---
         window.handleLogin = async (e) => {
@@ -426,10 +439,10 @@
         function setupRealtimeListener() {
             const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
             onSnapshot(query(tasksRef), (snapshot) => {
-                // Check seed (v6 to force restore)
-                if(snapshot.empty && !localStorage.getItem('seeded_v6')) {
+                // Check seed (v7 to force restore due to KPI updates)
+                if(snapshot.empty && !localStorage.getItem('seeded_v7')) {
                     seedInitialData(tasksRef);
-                    localStorage.setItem('seeded_v6', 'true');
+                    localStorage.setItem('seeded_v7', 'true');
                     return; 
                 }
                 
@@ -465,9 +478,9 @@
                         desc: `ออกแบบ KV หลักสำหรับแคมเปญ ${doubleDigit} (FB Cover, Line OA, Website Banner) - เน้นสี${i%2==0?'สดใส':'พาสเทล'}`, 
                         channel: "Online Platform", 
                         priority: "C", 
-                        status: "todo", 
+                        status: "doing", // Set to doing for some
                         department: "Graphic",
-                        kpi: "Financials (1.1)",
+                        kpi: "Financials (1.1)", // Updated
                         dueDate: new Date(2025, i, 5).toISOString().split('T')[0]
                     },
                     // Banner Sets
@@ -478,7 +491,7 @@
                         priority: "H", 
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "Profitability (1.2)",
+                        kpi: "Profitability (1.2)", // Updated
                         dueDate: new Date(2025, i, 12).toISOString().split('T')[0]
                     },
                     { 
@@ -488,7 +501,7 @@
                         priority: "H", 
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "Financials (1.1)",
+                        kpi: "Financials (1.1)", // Updated
                         dueDate: new Date(2025, i, 25).toISOString().split('T')[0]
                     },
                     // Social Content (Restored)
@@ -497,9 +510,9 @@
                         desc: "Album Post (4+1) เล่าสตอรี่แคมเปญ + โปรโมชั่น Early Bird", 
                         channel: "Social Media", 
                         priority: "M", 
-                        status: "todo", 
+                        status: "draft", // Set to draft for some
                         department: "Graphic",
-                        kpi: "Customer & Strategy (2.1)",
+                        kpi: "Customer Exp (2.1)", // Updated
                         dueDate: new Date(2025, i, 1).toISOString().split('T')[0]
                     },
                     { 
@@ -507,9 +520,9 @@
                         desc: "รวมรีวิวลูกค้า (แคปแชท/รูปรีวิว) ลง FB/IG Story", 
                         channel: "Social Media", 
                         priority: "S", 
-                        status: "todo", 
+                        status: "done", // Set to done for some
                         department: "Graphic",
-                        kpi: "Customer & Strategy (2.3)",
+                        kpi: "Market Presence (2.3)", // Updated
                         dueDate: new Date(2025, i, 15).toISOString().split('T')[0]
                     },
                     { 
@@ -519,7 +532,7 @@
                         priority: "S", 
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "N/A",
+                        kpi: "N/A", // Updated
                         dueDate: new Date(2025, i, 20).toISOString().split('T')[0]
                     },
                     // Internal (Restored)
@@ -530,7 +543,7 @@
                         priority: "S", 
                         status: "todo", 
                         department: "Graphic",
-                        kpi: "Strategy (6.5)",
+                        kpi: "IBC Collaboration (6.5)", // Updated
                         dueDate: new Date(2025, i, 28).toISOString().split('T')[0]
                     }
                 ];
@@ -544,7 +557,7 @@
                         priority: "H",
                         status: "todo",
                         department: "Video",
-                        kpi: "Financials (1.1)",
+                        kpi: "Financials (1.1)", // Updated
                         dueDate: new Date(2025, i, 3).toISOString().split('T')[0]
                     },
                     {
@@ -554,7 +567,7 @@
                         priority: "M",
                         status: "todo",
                         department: "Video",
-                        kpi: "Customer & Strategy (2.1)",
+                        kpi: "Customer Exp (2.1)", // Updated
                         dueDate: new Date(2025, i, 10).toISOString().split('T')[0]
                     }
                 ];
@@ -857,13 +870,20 @@
         }
 
         // --- CRUD ---
+        
+        function populateKpiSelect(selectedValue = 'N/A') {
+            const kpiSelect = document.getElementById('newTaskKPI');
+            kpiSelect.innerHTML = kpiOptions.map(opt => 
+                `<option value="${opt.value}" ${opt.value === selectedValue ? 'selected' : ''}>${opt.label}</option>`
+            ).join('');
+        }
+
         window.openAddTaskModal = function() {
             document.getElementById('editingTaskId').value = '';
             document.getElementById('modalTitle').innerText = 'เพิ่มงานใหม่ (' + currentDepartment + ')';
             document.getElementById('newTaskTitle').value = '';
             document.getElementById('newTaskDesc').value = '';
             document.getElementById('newTaskDueDate').value = '';
-            document.getElementById('newTaskKPI').value = 'N/A'; // Default KPI
             
             // Populate Month
             document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
@@ -871,6 +891,9 @@
             // Populate Channels based on Dept
             const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
             document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            // Populate KPI (Always set to default 'N/A' for new task)
+            populateKpiSelect('N/A');
 
             document.getElementById('addTaskModal').classList.remove('hidden');
         }
@@ -884,13 +907,16 @@
             document.getElementById('newTaskTitle').value = task.title;
             document.getElementById('newTaskDesc').value = task.desc;
             document.getElementById('newTaskDueDate').value = task.dueDate || '';
-            document.getElementById('newTaskKPI').value = task.kpi || 'N/A'; // Set KPI
             
+            // Populate Month
             document.getElementById('newTaskMonth').innerHTML = fullMonths.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
             
             // Populate Channels ensuring current value exists
             const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
             document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}" ${c===task.channel?'selected':''}>${c}</option>`).join('');
+            
+            // Populate KPI (Set to existing task's KPI)
+            populateKpiSelect(task.kpi || 'N/A');
             
             document.getElementById('newTaskPriority').value = task.priority;
             
