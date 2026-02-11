@@ -82,8 +82,13 @@
           deleteDoc, 
           doc, 
           onSnapshot, 
-          query 
+          query,
+          orderBy,
+          limit,
+          where
         } from 'firebase/firestore';
+        
+        // Remove 'CloudUpload' import to fix syntax error
         import { 
           Calendar, PieChart, LogOut, Plus, Search, Filter, MoreHorizontal, CheckCircle, 
           Clock, AlertCircle, X, Image as ImageIcon, Trash2, Edit2, 
@@ -102,7 +107,7 @@
         };
         const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : defaultFirebaseConfig;
         
-        // --- FIX: Reverted appId to 'graphic-planner-default' to restore previous data ---
+        // Use 'graphic-planner-default' to restore data visibility
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'graphic-planner-default';
         const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
 
@@ -342,17 +347,18 @@
                 <button onClick={() => onSwitchTab('planner')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'planner' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><Calendar size={16} /> <span className="hidden sm:inline">Planner</span></button>
                 <button onClick={() => onSwitchTab('dashboard')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><PieChart size={16} /> <span className="hidden sm:inline">Dashboard</span></button>
                 
-                {!user?.isAnonymous && (
-                  <>
-                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-                    <button onClick={toggleNotif} className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition">
-                      <Bell size={18} />
-                      {notifCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
-                    </button>
-                    <button onClick={toggleHistory} className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition"><History size={18} /></button>
-                    <button onClick={onLogout} className="p-2 text-slate-300 hover:text-red-500 transition"><LogOut size={18} /></button>
-                  </>
+                {/* Always show notifications and logout for better UX, even for guests (logout goes back to login screen) */}
+                <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                {user && !user.isAnonymous && (
+                    <>
+                        <button onClick={toggleNotif} className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition">
+                            <Bell size={18} />
+                            {notifCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
+                        </button>
+                        <button onClick={toggleHistory} className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition"><History size={18} /></button>
+                    </>
                 )}
+                <button onClick={onLogout} className="p-2 text-slate-300 hover:text-red-500 transition"><LogOut size={18} /></button>
               </div>
             </div>
           </nav>
@@ -749,8 +755,9 @@
             const initAuth = async () => {
               if (initialAuthToken) {
                 try { await signInWithCustomToken(auth, initialAuthToken); }
-                catch (e) { await signInAnonymously(auth); }
-              } else await signInAnonymously(auth);
+                catch (e) { console.log("Token error, waiting for manual login"); }
+              } 
+              // Removed auto signInAnonymously to show login screen first
             };
             initAuth();
 
@@ -798,6 +805,12 @@
             setAuthLoading(true);
             try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); } 
             catch (err) { setAuthError("Incorrect email/password"); setAuthLoading(false); }
+          };
+
+          const handleGuestLogin = async () => {
+             setAuthLoading(true);
+             try { await signInAnonymously(auth); }
+             catch (err) { setAuthError(err.message); setAuthLoading(false); }
           };
 
           const handleSaveTask = async (data) => {
@@ -906,7 +919,7 @@
             return list;
           }, [tasks, currentMonth, filter, search]);
 
-          if (!user && !authLoading) return <LoginOverlay onLogin={handleLogin} onGuest={() => signInAnonymously(auth)} loading={authLoading} error={authError} />;
+          if (!user && !authLoading) return <LoginOverlay onLogin={handleLogin} onGuest={handleGuestLogin} loading={authLoading} error={authError} />;
 
           return (
             <div className="min-h-screen bg-slate-50 pb-20 relative">
@@ -1003,7 +1016,7 @@
 
               <ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} loading={actionLoading} />
               <AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSave={handleSaveTask} editingTask={editingTask} workerRef={workerRef} isSaving={actionLoading} />
-              <TaskDetailModal task={activeTask} onClose={() => setDetailModalOpen(false)} onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} isGuest={user?.isAnonymous} onToggleSubtask={handleToggleSubtask} />
+              <TaskDetailModal task={activeTask} onClose={() => { setActiveTask(null); setDetailModalOpen(false); }} onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} isGuest={user?.isAnonymous} onToggleSubtask={handleToggleSubtask} />
             </div>
           );
         }
