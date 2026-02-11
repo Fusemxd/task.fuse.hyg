@@ -46,7 +46,7 @@
         .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
@@ -82,7 +82,8 @@
           deleteDoc, 
           doc, 
           onSnapshot, 
-          query 
+          query
+          // Removed orderBy, limit to fix crash (Client-side sorting used instead)
         } from 'firebase/firestore';
         
         import { 
@@ -213,11 +214,23 @@
           useEffect(() => {
             if (!isOpen) return;
             setLoading(true);
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'), orderBy('timestamp', 'desc'), limit(20));
+            
+            // FIX: Removed orderBy and limit from server query to avoid index requirement issues
+            // Fetch all logs and sort/limit client-side instead
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'));
+            
             const unsub = onSnapshot(q, (snap) => {
               const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
-              setLogs(data);
+              
+              // Client-side sort and limit
+              data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+              const recentLogs = data.slice(0, 20);
+              
+              setLogs(recentLogs);
               setLoading(false);
+            }, (error) => {
+                console.error("Audit log error:", error);
+                setLoading(false);
             });
             return unsub;
           }, [isOpen]);
