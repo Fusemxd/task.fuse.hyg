@@ -1084,6 +1084,23 @@
                         <i class="fa-solid fa-user-pen"></i> By: <span class="truncate max-w-[120px]">${t.createdBy}</span>
                     </div>` : '';
 
+                // --- DESCRIPTION LOGIC (Updated) ---
+                let descDisplay = '';
+                const descText = t.desc ? t.desc.trim() : '';
+                
+                if (!descText) {
+                    // Case 1: No description -> Leave blank space (maintain height)
+                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1 min-h-[1.5em]"></p>`; 
+                } else if (descText.length > 60) {
+                    // Case 2: Long description -> Truncate + Read More
+                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1">
+                        ${descText.substring(0, 60)}... <span class="text-teal-600 font-medium">อ่านเพิ่ม</span>
+                    </p>`;
+                } else {
+                    // Case 3: Short description -> Show all
+                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1">${descText}</p>`;
+                }
+
                 return `
                 <div onclick="openTaskDetailModal('${t.id}')" class="cursor-pointer bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor} ${cardClass}">
                     <div class="flex justify-between items-start mb-2">
@@ -1091,7 +1108,9 @@
                         ${actions}
                     </div>
                     <h4 class="font-bold text-slate-800 text-lg leading-tight mb-1">${t.title}</h4>
-                    <p class="text-xs text-slate-500 font-light mb-1 line-clamp-2">${t.desc}</p>
+                    
+                    ${descDisplay}
+                    
                     ${displayRemark}
                     ${imageGrid}
 
