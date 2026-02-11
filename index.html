@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Production Planner 2026 (Graphic Team)</title>
+    <title>Production Planner 2025 (Graphic Team)</title>
     
     <!-- FAVICON -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
@@ -1042,37 +1042,41 @@
                         KPI: ${kpiID}
                     </span>` : '';
 
-                // --- IMAGE LOGIC ---
-                let coverImage = '';
-                let hasRealImage = false;
-                let moreCount = 0;
-
+                // --- IMAGE LOGIC (Updated to Grid) ---
+                let images = [];
                 if (t.attachments && t.attachments.length > 0) {
-                    coverImage = t.attachments[0].url;
-                    hasRealImage = true;
-                    if(t.attachments.length > 1) moreCount = t.attachments.length - 1;
+                    images = t.attachments;
                 } else if (t.imageUrl) {
-                    coverImage = t.imageUrl;
-                    hasRealImage = true;
+                    images = [{ url: t.imageUrl }];
                 } else {
-                    coverImage = 'https://placehold.co/800x450/f1f5f9/94a3b8?text=Waiting+for+Visual';
-                    hasRealImage = false;
+                    // Placeholder (Square Mockup)
+                    images = [{ url: 'https://placehold.co/800x800/f1f5f9/94a3b8?text=No+Image', isPlaceholder: true }];
                 }
 
-                const moreBadge = moreCount > 0 ? 
-                    `<div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">
-                        +${moreCount} รูป
-                    </div>` : '';
-
-                const imageDisplay = `
-                    <div class="mt-3 relative group/img cursor-pointer overflow-hidden rounded-lg border border-slate-100 shadow-sm" onclick="event.stopPropagation(); viewImage('${t.id}')">
-                        <img src="${coverImage}" class="w-full h-32 object-cover transition-transform duration-500 group-hover/img:scale-105 ${hasRealImage ? '' : 'opacity-70 grayscale'}">
-                        ${hasRealImage ? `
-                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/20">
-                            <i class="fa-solid fa-magnifying-glass-plus text-white text-2xl drop-shadow-md"></i>
+                const maxShow = 4;
+                const totalImgs = images.length;
+                const visibleImages = images.slice(0, maxShow);
+                
+                let imageGrid = `<div class="mt-3 grid grid-cols-4 gap-2">`;
+                
+                visibleImages.forEach((img, idx) => {
+                    const isLast = idx === maxShow - 1;
+                    const remain = totalImgs - maxShow;
+                    const hasMore = isLast && remain > 0;
+                    const opacity = img.isPlaceholder ? 'opacity-50 grayscale' : '';
+                    const overlayCount = totalImgs - (maxShow - 1); // e.g. 5 total, show 4. last one shows +2 (img 4 & 5)
+                    
+                    imageGrid += `
+                    <div class="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50 cursor-pointer group/imgItem" onclick="event.stopPropagation(); viewImage('${t.id}')">
+                        <img src="${img.url}" class="w-full h-full object-cover transition-transform duration-500 group-hover/imgItem:scale-110 ${opacity}">
+                        ${hasMore ? `
+                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px] transition-colors hover:bg-black/70">
+                            +${overlayCount}
                         </div>` : ''}
-                        ${moreBadge}
                     </div>`;
+                });
+                
+                imageGrid += `</div>`;
 
                 // --- CREATOR DISPLAY ---
                 const creatorDisplay = t.createdBy ? 
@@ -1089,7 +1093,7 @@
                     <h4 class="font-bold text-slate-800 text-lg leading-tight mb-1">${t.title}</h4>
                     <p class="text-xs text-slate-500 font-light mb-1 line-clamp-2">${t.desc}</p>
                     ${displayRemark}
-                    ${imageDisplay}
+                    ${imageGrid}
 
                     <div class="flex justify-between items-end border-t border-slate-50 pt-3 mt-3">
                         ${statusBtn}
@@ -1413,4 +1417,3 @@
     </script>
 </body>
 </html>
-
