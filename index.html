@@ -246,6 +246,64 @@
         </div>
     </main>
 
+    <!-- TASK DETAIL MODAL (POPUP) -->
+    <div id="taskDetailModal" class="fixed inset-0 z-[65] hidden flex items-center justify-center modal-backdrop fade-in p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
+                <div>
+                    <span id="detailChannel" class="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-200 px-2 py-1 rounded mb-2 inline-block">CHANNEL</span>
+                    <h3 id="detailTitle" class="font-bold text-xl text-slate-800 leading-tight">Task Title</h3>
+                </div>
+                <button onclick="closeTaskDetailModal()" class="text-slate-400 hover:text-slate-600 transition p-1"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            
+            <!-- Scrollable Content -->
+            <div class="p-6 overflow-y-auto space-y-6">
+                <!-- Status & Meta -->
+                <div class="flex flex-wrap gap-4 items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
+                    <div id="detailStatus">Status Pill</div>
+                    <div class="flex gap-4 text-sm text-slate-600">
+                        <div id="detailPriority">Priority</div>
+                        <div id="detailDueDate"><i class="fa-regular fa-clock mr-1"></i> Date</div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">รายละเอียด (Description)</h4>
+                    <p id="detailDesc" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">...</p>
+                </div>
+
+                <!-- Images -->
+                <div id="detailImagesSection" class="hidden">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">รูปภาพแนบ (Attachments)</h4>
+                    <div id="detailImagesGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                </div>
+
+                <!-- Footer Meta -->
+                <div class="grid grid-cols-2 gap-4 text-xs text-slate-500 border-t border-slate-100 pt-4">
+                    <div>
+                        <span class="block font-bold text-slate-400 mb-1">KPI Reference</span>
+                        <span id="detailKPI" class="bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100">N/A</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="block font-bold text-slate-400 mb-1">Created By</span>
+                        <span id="detailCreator" class="flex items-center justify-end gap-1"><i class="fa-solid fa-user-pen"></i> Name</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
+                <button id="detailEditBtn" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition flex items-center gap-2">
+                    <i class="fa-solid fa-pen"></i> แก้ไข
+                </button>
+                <button onclick="closeTaskDetailModal()" class="px-4 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-sm transition">ปิด</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ADD/EDIT TASK MODAL -->
     <div id="addTaskModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop fade-in p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
@@ -807,6 +865,78 @@
             document.getElementById('imageViewerModal').classList.add('hidden');
         };
 
+        // --- TASK DETAIL MODAL LOGIC ---
+        window.openTaskDetailModal = function(id) {
+            const task = scheduleData.flat().find(t => t.id === id);
+            if(!task) return;
+
+            document.getElementById('detailTitle').innerText = task.title;
+            document.getElementById('detailDesc').innerText = task.desc || '-';
+            document.getElementById('detailChannel').innerText = task.channel;
+            
+            // Status styling
+            const sConf = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
+            const statusEl = document.getElementById('detailStatus');
+            statusEl.className = `px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-2 w-fit ${sConf.colorClass}`;
+            statusEl.innerHTML = `<i class="fa-solid ${sConf.icon}"></i> ${sConf.label}`;
+
+            // Priority
+            const pColor = task.priority === 'C' ? 'text-red-500' : 'text-slate-500';
+            document.getElementById('detailPriority').className = `font-bold ${pColor}`;
+            document.getElementById('detailPriority').innerText = `Priority: ${task.priority}`;
+
+            // Date
+            document.getElementById('detailDueDate').innerHTML = task.dueDate ? 
+                `<i class="fa-regular fa-clock mr-1"></i> ${new Date(task.dueDate).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : '-';
+
+            // KPI & Creator
+            document.getElementById('detailKPI').innerText = task.kpi || 'N/A';
+            document.getElementById('detailCreator').innerHTML = `<i class="fa-solid fa-user-pen text-slate-400"></i> ${task.createdBy || 'Guest'}`;
+
+            // Images
+            const imgContainer = document.getElementById('detailImagesSection');
+            const imgGrid = document.getElementById('detailImagesGrid');
+            imgGrid.innerHTML = '';
+            
+            let images = task.attachments || [];
+            if(images.length === 0 && task.imageUrl) images = [{url: task.imageUrl}];
+
+            if(images.length > 0) {
+                imgContainer.classList.remove('hidden');
+                images.forEach((img, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-video rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 relative';
+                    div.innerHTML = `<img src="${img.url}" class="w-full h-full object-cover">`;
+                    div.onclick = (e) => {
+                        e.stopPropagation();
+                        // Open viewer
+                        viewImage(task.id); 
+                    };
+                    imgGrid.appendChild(div);
+                });
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            // Edit button hook
+            const editBtn = document.getElementById('detailEditBtn');
+            if(isGuest) {
+                editBtn.classList.add('hidden');
+            } else {
+                editBtn.classList.remove('hidden');
+                editBtn.onclick = () => {
+                    closeTaskDetailModal();
+                    openEditTaskModal(task.id);
+                };
+            }
+
+            document.getElementById('taskDetailModal').classList.remove('hidden');
+        }
+
+        window.closeTaskDetailModal = function() {
+            document.getElementById('taskDetailModal').classList.add('hidden');
+        }
+
         // --- RENDER TASKS ---
         window.renderTasks = function() {
             const allTasks = scheduleData[currentMonth].filter(t => t.department === 'Graphic');
@@ -843,14 +973,14 @@
 
                 const actions = isGuest ? '' : `
                     <div class="flex gap-2">
-                        <button onclick="openEditTaskModal('${t.id}')" class="text-slate-300 ${hoverColor}"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="event.stopPropagation(); openEditTaskModal('${t.id}')" class="text-slate-300 ${hoverColor}"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="event.stopPropagation(); promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
                     </div>`; 
                 
                 const statusBtn = isGuest 
                     ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}"><i class="fa-solid ${sConf.icon}"></i> ${sConf.label}</span>`
                     : `<div class="relative">
-                        <button id="${buttonId}" onclick="toggleStatusDropdown(event, '${dropdownId}')" class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
+                        <button id="${buttonId}" onclick="event.stopPropagation(); toggleStatusDropdown(event, '${dropdownId}')" class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
                             <i class="fa-solid ${sConf.icon}"></i> ${sConf.label} <i class="fa-solid fa-chevron-down opacity-50"></i>
                         </button>
                         <div id="${dropdownId}" class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden z-10 overflow-hidden">
@@ -897,7 +1027,7 @@
                     </div>` : '';
 
                 const imageDisplay = `
-                    <div class="mt-3 relative group/img cursor-pointer overflow-hidden rounded-lg border border-slate-100 shadow-sm" onclick="viewImage('${t.id}')">
+                    <div class="mt-3 relative group/img cursor-pointer overflow-hidden rounded-lg border border-slate-100 shadow-sm" onclick="event.stopPropagation(); viewImage('${t.id}')">
                         <img src="${coverImage}" class="w-full h-32 object-cover transition-transform duration-500 group-hover/img:scale-105 ${hasRealImage ? '' : 'opacity-70 grayscale'}">
                         ${hasRealImage ? `
                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/20">
@@ -913,7 +1043,7 @@
                     </div>` : '';
 
                 return `
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor}">
+                <div onclick="openTaskDetailModal('${t.id}')" class="cursor-pointer bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor}">
                     <div class="flex justify-between items-start mb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded">${t.channel}</span>
                         ${actions}
