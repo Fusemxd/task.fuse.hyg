@@ -889,6 +889,282 @@
             }
         });
 
+        // --- MODAL FUNCTIONS (Restored) ---
+        window.openAddTaskModal = function() {
+            document.getElementById('editingTaskId').value = '';
+            document.getElementById('modalTitle').innerText = 'Create New Task';
+            document.getElementById('newTaskTitle').value = '';
+            document.getElementById('newTaskDesc').value = '';
+            document.getElementById('newTaskRemark').value = '';
+            document.getElementById('newTaskDueDate').value = '';
+            
+            tempAttachments = [];
+            renderAttachmentList();
+            
+            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
+            
+            const chans = graphicChannels;
+            document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            populateKpiSelect('N/A');
+            document.getElementById('addTaskModal').classList.remove('hidden');
+        }
+
+        window.openEditTaskModal = function(id) {
+            const task = scheduleData.flat().find(t => t.id === id); 
+            if(!task) return;
+            
+            document.getElementById('editingTaskId').value = id;
+            document.getElementById('modalTitle').innerText = 'Edit Task';
+            document.getElementById('newTaskTitle').value = task.title;
+            document.getElementById('newTaskDesc').value = task.desc;
+            document.getElementById('newTaskRemark').value = task.remark || '';
+            document.getElementById('newTaskDueDate').value = task.dueDate || '';
+            
+            tempAttachments = [];
+            if(task.attachments && task.attachments.length > 0) {
+                tempAttachments = JSON.parse(JSON.stringify(task.attachments));
+            } else if(task.imageUrl) {
+                tempAttachments.push({ url: task.imageUrl, caption: '' });
+            }
+            renderAttachmentList();
+
+            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
+            
+            const chans = graphicChannels;
+            document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}" ${c===task.channel?'selected':''}>${c}</option>`).join('');
+            
+            populateKpiSelect(task.kpi || 'N/A');
+            document.getElementById('newTaskPriority').value = task.priority;
+            
+            document.getElementById('addTaskModal').classList.remove('hidden');
+        }
+
+        window.closeAddTaskModal = () => document.getElementById('addTaskModal').classList.add('hidden');
+
+        window.handleSaveTask = async function() {
+            const id = document.getElementById('editingTaskId').value;
+            const title = document.getElementById('newTaskTitle').value;
+            
+            if(!title) { 
+                document.getElementById('titleError').classList.remove('hidden');
+                return; 
+            }
+            document.getElementById('titleError').classList.add('hidden');
+            
+            const kpi = document.getElementById('newTaskKPI').value; 
+            const userEmail = currentUser && !currentUser.isAnonymous ? currentUser.email : 'Guest';
+
+            const data = {
+                title,
+                desc: document.getElementById('newTaskDesc').value,
+                remark: document.getElementById('newTaskRemark').value,
+                channel: document.getElementById('newTaskChannel').value,
+                priority: document.getElementById('newTaskPriority').value,
+                monthIndex: parseInt(document.getElementById('newTaskMonth').value),
+                dueDate: document.getElementById('newTaskDueDate').value,
+                department: currentDepartment,
+                kpi: kpi,
+                attachments: tempAttachments, 
+                imageUrl: tempAttachments.length > 0 ? tempAttachments[0].url : '' 
+            };
+
+            const ref = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
+            if(id) {
+                await updateDoc(doc(ref, id), data);
+            } else {
+                data.status = 'todo';
+                data.createdAt = new Date().toISOString();
+                data.createdBy = userEmail; 
+                await addDoc(ref, data);
+            }
+            closeAddTaskModal();
+        }
+
+        // --- IMAGE HANDLING ---
+        window.handleImageSelect = function(input) {
+            const files = Array.from(input.files);
+            if (!files.length) return;
+            const validFiles = files.filter(f => f.size <= 5 * 1024 * 1024);
+            if (validFiles.length < files.length) alert("Some files skipped (Max 5MB)");
+            if (validFiles.length === 0) return;
+
+            const promises = validFiles.map(file => compressImage(file));
+            Promise.all(promises).then(base64Array => {
+                base64Array.forEach(base64 => {
+                    tempAttachments.push({ url: base64, caption: '' });
+                });
+                renderAttachmentList();
+                input.value = ''; 
+            }).catch(err => alert("Error processing image"));
+        };
+
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; 
+                        const scaleSize = MAX_WIDTH / img.width;
+                        if (scaleSize < 1) {
+                            canvas.width = MAX_WIDTH;
+                            canvas.height = img.height * scaleSize;
+                        } else {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                        }
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
+
+        window.renderAttachmentList = function() {
+            const container = document.getElementById('attachmentList');
+            container.innerHTML = '';
+            tempAttachments.forEach((att, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex gap-3 items-center bg-slate-50 p-2 rounded-lg border border-slate-200';
+                item.innerHTML = `
+                    <div class="w-12 h-12 shrink-0 bg-white rounded border border-slate-200 overflow-hidden"><img src="${att.url}" class="w-full h-full object-cover"></div>
+                    <input type="text" placeholder="Caption..." class="flex-grow text-xs border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-teal-500 bg-white" value="${att.caption}" onchange="updateAttachmentCaption(${index}, this.value)">
+                    <button onclick="removeAttachment(${index})" class="text-slate-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        window.updateAttachmentCaption = (index, value) => { if(tempAttachments[index]) tempAttachments[index].caption = value; }
+        window.removeAttachment = (index) => { tempAttachments.splice(index, 1); renderAttachmentList(); }
+
+        // --- TASK DETAIL & VIEWER ---
+        window.openTaskDetailModal = function(id) {
+            const task = scheduleData.flat().find(t => t.id === id);
+            if(!task) return;
+
+            document.getElementById('detailTitle').innerText = task.title;
+            document.getElementById('detailDesc').innerText = task.desc || '-';
+            document.getElementById('detailChannel').innerText = task.channel;
+            
+            const remarkDiv = document.getElementById('detailRemarkSection');
+            if(task.remark && task.remark.trim() !== "") {
+                document.getElementById('detailRemark').innerText = task.remark;
+                remarkDiv.classList.remove('hidden');
+            } else {
+                remarkDiv.classList.add('hidden');
+            }
+
+            const sConf = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
+            const statusEl = document.getElementById('detailStatus');
+            statusEl.className = `px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-2 w-fit ${sConf.colorClass}`;
+            statusEl.innerHTML = `<i class="${sConf.icon}"></i> ${sConf.label}`;
+
+            const pColor = task.priority === 'C' ? 'text-red-500' : 'text-slate-500';
+            document.getElementById('detailPriority').className = `font-bold ${pColor} flex items-center gap-1`;
+            document.getElementById('detailPriority').innerHTML = `Priority: ${task.priority}`;
+
+            document.getElementById('detailDueDate').innerHTML = task.dueDate ? 
+                `<i class="fa-regular fa-clock text-slate-400"></i> ${new Date(task.dueDate).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : '-';
+
+            document.getElementById('detailKPI').innerText = task.kpi || 'N/A';
+            document.getElementById('detailCreator').innerText = task.createdBy || 'Guest';
+
+            const imgContainer = document.getElementById('detailImagesSection');
+            const imgGrid = document.getElementById('detailImagesGrid');
+            imgGrid.innerHTML = '';
+            
+            let images = task.attachments || [];
+            if(images.length === 0 && task.imageUrl) images = [{url: task.imageUrl}];
+
+            if(images.length > 0) {
+                imgContainer.classList.remove('hidden');
+                images.forEach((img) => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-video rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 relative';
+                    div.innerHTML = `<img src="${img.url}" class="w-full h-full object-cover">`;
+                    div.onclick = (e) => { e.stopPropagation(); viewImage(task.id); };
+                    imgGrid.appendChild(div);
+                });
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            const editBtn = document.getElementById('detailEditBtn');
+            if(isGuest) editBtn.classList.add('hidden');
+            else {
+                editBtn.classList.remove('hidden');
+                editBtn.onclick = () => { closeTaskDetailModal(); openEditTaskModal(task.id); };
+            }
+            document.getElementById('taskDetailModal').classList.remove('hidden');
+        }
+
+        window.closeTaskDetailModal = () => document.getElementById('taskDetailModal').classList.add('hidden');
+
+        window.viewImage = function(taskId) {
+            const task = scheduleData.flat().find(t => t.id === taskId);
+            if(!task) return;
+            let images = [];
+            if(task.attachments && task.attachments.length > 0) images = task.attachments;
+            else if(task.imageUrl) images = [{ url: task.imageUrl, caption: task.title }];
+
+            if(images.length > 0) {
+                currentViewingImages = images;
+                currentViewingIndex = 0;
+                updateLightboxContent();
+                document.getElementById('imageViewerModal').classList.remove('hidden');
+            }
+        };
+
+        window.changeImage = function(direction) {
+            if(currentViewingImages.length <= 1) return;
+            currentViewingIndex += direction;
+            if(currentViewingIndex < 0) currentViewingIndex = currentViewingImages.length - 1;
+            if(currentViewingIndex >= currentViewingImages.length) currentViewingIndex = 0;
+            updateLightboxContent();
+        }
+
+        function updateLightboxContent() {
+            const imgData = currentViewingImages[currentViewingIndex];
+            const imgEl = document.getElementById('fullImageView');
+            imgEl.style.opacity = '0.5';
+            setTimeout(() => { imgEl.src = imgData.url; imgEl.style.opacity = '1'; }, 150);
+            document.getElementById('imageViewerCaption').innerText = imgData.caption || '-';
+            const counter = document.getElementById('imageViewerCounter');
+            if(currentViewingImages.length > 1) {
+                counter.innerText = `${currentViewingIndex + 1} / ${currentViewingImages.length}`;
+                document.getElementById('imgPrevBtn').classList.remove('hidden');
+                document.getElementById('imgNextBtn').classList.remove('hidden');
+            } else {
+                counter.innerText = "";
+                document.getElementById('imgPrevBtn').classList.add('hidden');
+                document.getElementById('imgNextBtn').classList.add('hidden');
+            }
+        }
+
+        window.closeImageViewer = () => document.getElementById('imageViewerModal').classList.add('hidden');
+        
+        window.updateStatus = async (id, status) => { if(!isGuest) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { status }); }
+        window.promptDeleteTask = (id) => { if(!isGuest) { document.getElementById('deleteTaskIdHolder').value = id; document.getElementById('deleteConfirmModal').classList.remove('hidden'); } }
+        window.closeDeleteConfirmModal = () => document.getElementById('deleteConfirmModal').classList.add('hidden');
+        window.executeDeleteTask = async () => {
+            const id = document.getElementById('deleteTaskIdHolder').value;
+            if(!id) return;
+            closeDeleteConfirmModal(); 
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
+        }
+
+        function populateKpiSelect(val='N/A') {
+            document.getElementById('newTaskKPI').innerHTML = KPI_OPTIONS.map(o => `<option value="${o.value}" ${o.value===val?'selected':''}>${o.label}</option>`).join('');
+        }
+
         // --- INITIALIZATION ---
         window.onload = function() {
             const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
@@ -901,31 +1177,6 @@
             }
             loadMonth(new Date().getMonth());
         }
-
-        // --- (Previous helper functions like compressImage, handleImageSelect, CRUD operations remain largely the same logic but updated with new UI classes in their render parts above) ---
-        // For brevity, ensuring all previous CRUD logic is attached to window object
-        window.handleImageSelect = window.handleImageSelect; 
-        window.removeAttachment = window.removeAttachment;
-        window.openAddTaskModal = window.openAddTaskModal;
-        window.openEditTaskModal = window.openEditTaskModal;
-        window.closeAddTaskModal = window.closeAddTaskModal;
-        window.handleSaveTask = window.handleSaveTask;
-        window.updateStatus = window.updateStatus;
-        window.promptDeleteTask = window.promptDeleteTask;
-        window.closeDeleteConfirmModal = window.closeDeleteConfirmModal;
-        window.executeDeleteTask = window.executeDeleteTask;
-        window.viewImage = window.viewImage;
-        window.changeImage = window.changeImage;
-        window.closeImageViewer = window.closeImageViewer;
-        window.openTaskDetailModal = window.openTaskDetailModal;
-        window.closeTaskDetailModal = window.closeTaskDetailModal;
-
-        function populateKpiSelect(val='N/A') {
-            document.getElementById('newTaskKPI').innerHTML = KPI_OPTIONS.map(o => `<option value="${o.value}" ${o.value===val?'selected':''}>${o.label}</option>`).join('');
-        }
-        // Expose necessary internal helpers to window for the inline HTML onclicks to work if they weren't modules, 
-        // but since this is module type, we attach to window explicitly.
-        // (Already handled by previous define pattern)
 
     </script>
 </body>
