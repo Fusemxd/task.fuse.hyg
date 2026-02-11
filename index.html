@@ -46,7 +46,7 @@
         .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
@@ -84,16 +84,14 @@
           onSnapshot, 
           query,
           orderBy,
-          limit,
-          where
+          limit
         } from 'firebase/firestore';
         
-        // Remove 'CloudUpload' import to fix syntax error
         import { 
           Calendar, PieChart, LogOut, Plus, Search, Filter, MoreHorizontal, CheckCircle, 
           Clock, AlertCircle, X, Image as ImageIcon, Trash2, Edit2, 
           ChevronDown, User, Layers, Rocket, Loader2, Undo, Info, CheckCircle2, 
-          XCircle, AlertTriangle, Bell, ListChecks, History, Shield, CheckSquare, Square
+          XCircle, AlertTriangle, Bell, ListChecks, History, Shield, CheckSquare, Square, Eye
         } from 'lucide-react';
 
         // --- Firebase Configuration ---
@@ -107,7 +105,6 @@
         };
         const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : defaultFirebaseConfig;
         
-        // Use 'graphic-planner-default' to restore data visibility
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'graphic-planner-default';
         const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
 
@@ -173,7 +170,7 @@
 
         // --- Components ---
 
-        const NotificationDropdown = ({ notifications, onClose }) => (
+        const NotificationDropdown = ({ notifications, onClose, onViewTask }) => (
           <div className="absolute top-16 right-4 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-slideIn">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-bold text-sm text-slate-700">Notifications</h3>
@@ -184,14 +181,24 @@
                 <div className="p-8 text-center text-slate-400 text-sm">No new notifications</div>
               ) : (
                 notifications.map((notif, idx) => (
-                  <div key={idx} className="p-3 border-b border-slate-50 hover:bg-slate-50 transition flex gap-3">
+                  <div key={idx} className="p-3 border-b border-slate-50 hover:bg-slate-50 transition flex gap-3 items-start text-left">
                     <div className={`mt-1 shrink-0 ${notif.type === 'alert' ? 'text-red-500' : 'text-blue-500'}`}>
                       {notif.type === 'alert' ? <AlertCircle size={16} /> : <Info size={16} />}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-slate-700 font-medium">{notif.title}</p>
                       <p className="text-xs text-slate-500">{notif.message}</p>
-                      <span className="text-[10px] text-slate-400 mt-1 block">{notif.time}</span>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-[10px] text-slate-400">{notif.time}</span>
+                        {notif.taskId && (
+                            <button 
+                                onClick={() => onViewTask(notif.taskId)}
+                                className="text-[10px] font-bold text-white bg-teal-500 hover:bg-teal-600 px-3 py-1 rounded-full transition flex items-center gap-1 shadow-sm"
+                            >
+                                <Eye size={12} /> View
+                            </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -200,16 +207,16 @@
           </div>
         );
 
-        const AuditLogModal = ({ isOpen, onClose }) => {
+        const AuditLogDropdown = ({ isOpen, onClose }) => {
           const [logs, setLogs] = useState([]);
           const [loading, setLoading] = useState(true);
 
           useEffect(() => {
             if (!isOpen) return;
             setLoading(true);
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'));
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'), orderBy('timestamp', 'desc'), limit(20));
             const unsub = onSnapshot(q, (snap) => {
-              const data = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+              const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
               setLogs(data);
               setLoading(false);
             });
@@ -219,32 +226,39 @@
           if (!isOpen) return null;
 
           return (
-            <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><History size={20} /> Activity Log</h3>
-                  <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+            <div className="absolute top-16 right-16 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-slideIn">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-bold text-sm text-slate-700 flex items-center gap-2"><History size={16} /> Activity Log</h3>
+                  <button onClick={onClose}><X size={16} className="text-slate-400 hover:text-slate-600" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  {loading ? <div className="flex justify-center p-8"><Loader2 className="animate-spin text-teal-500" /></div> : 
-                   logs.length === 0 ? <div className="text-center text-slate-400 p-8">No history found</div> : (
-                    <div className="space-y-3">
+                <div className="max-h-80 overflow-y-auto">
+                  {loading ? <div className="flex justify-center p-6"><Loader2 className="animate-spin text-teal-500" size={20} /></div> : 
+                   logs.length === 0 ? <div className="p-8 text-center text-slate-400 text-sm">No activity recorded</div> : (
+                    <div>
                       {logs.map(log => (
-                        <div key={log.id} className="flex gap-3 text-sm p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <div className="shrink-0 mt-0.5 text-slate-400"><User size={16} /></div>
-                          <div className="flex-1">
-                            <div className="flex justify-between">
-                              <span className="font-bold text-slate-700">{log.user?.split('@')[0]}</span>
-                              <span className="text-[10px] text-slate-400">{new Date(log.timestamp).toLocaleString()}</span>
+                        <div key={log.id} className="p-3 border-b border-slate-50 hover:bg-slate-50 transition flex gap-3 text-left">
+                          <div className="mt-0.5 text-slate-400 shrink-0"><User size={14} /></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <span className="text-xs font-bold text-slate-700 truncate">{log.user?.split('@')[0]}</span>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap ml-1">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
-                            <p className="text-slate-600 mt-1"><span className="font-medium text-teal-600 uppercase text-xs px-1.5 py-0.5 bg-teal-50 rounded mr-1">{log.action}</span> {log.details}</p>
+                            <p className="text-xs text-slate-600 break-words leading-snug">
+                                <span className={`font-bold uppercase text-[9px] px-1 rounded mr-1 ${
+                                    log.action === 'CREATE' ? 'bg-emerald-100 text-emerald-700' :
+                                    log.action === 'DELETE' ? 'bg-red-100 text-red-700' :
+                                    log.action === 'UPDATE' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-slate-100 text-slate-600'
+                                }`}>{log.action}</span>
+                                {log.details}
+                            </p>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
+                <div className="bg-slate-50 p-2 text-center text-[10px] text-slate-400 border-t border-slate-100">Showing last 20 actions</div>
             </div>
           );
         };
@@ -347,7 +361,6 @@
                 <button onClick={() => onSwitchTab('planner')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'planner' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><Calendar size={16} /> <span className="hidden sm:inline">Planner</span></button>
                 <button onClick={() => onSwitchTab('dashboard')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><PieChart size={16} /> <span className="hidden sm:inline">Dashboard</span></button>
                 
-                {/* Always show notifications and logout for better UX, even for guests (logout goes back to login screen) */}
                 <div className="h-6 w-px bg-slate-200 mx-1"></div>
                 {user && !user.isAnonymous && (
                     <>
@@ -663,6 +676,8 @@
 };
 
         const Dashboard = ({ tasks }) => {
+            const [expandedMonth, setExpandedMonth] = useState(null);
+
             const counts = useMemo(() => {
                 const c = { todo: 0, doing: 0, draft: 0, done: 0, cancelled: 0 };
                 tasks.forEach(m => m.forEach(t => c[t.status] && c[t.status]++));
@@ -706,6 +721,85 @@
                             ))}
                         </div>
                     </div>
+
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                            <div>
+                                <h4 className="font-bold text-slate-700">Detailed Breakdown</h4>
+                                <p className="text-xs text-slate-400 mt-1">Click rows to expand details</p>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left min-w-[600px]">
+                                <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
+                                    <tr>
+                                        <th className="px-6 py-4 font-semibold w-1/4">Month</th>
+                                        <th className="px-6 py-4 font-semibold">Total Tasks</th>
+                                        <th className="px-6 py-4 font-semibold w-1/3">Progress</th>
+                                        <th className="px-6 py-4 font-semibold">%</th>
+                                        <th className="px-6 py-4 font-semibold text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 font-light text-slate-600">
+                                    {MONTH_NAMES_TH.map((m, i) => {
+                                        const monthTasks = tasks[i] || [];
+                                        const total = monthTasks.length;
+                                        const done = monthTasks.filter(t => t.status === 'done').length;
+                                        const percent = total ? Math.round((done / total) * 100) : 0;
+                                        let barColor = 'bg-slate-100';
+                                        if (percent > 0) barColor = 'bg-blue-400';
+                                        if (percent === 100) barColor = 'bg-emerald-400';
+
+                                        return (
+                                            <React.Fragment key={i}>
+                                                <tr 
+                                                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                    onClick={() => setExpandedMonth(expandedMonth === i ? null : i)}
+                                                >
+                                                    <td className="px-6 py-4 font-medium text-slate-700 flex items-center gap-2">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${expandedMonth === i ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-teal-500 group-hover:text-white'}`}>
+                                                            {i + 1}
+                                                        </div>
+                                                        {m}
+                                                    </td>
+                                                    <td className="px-6 py-4">{total}</td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="w-full bg-slate-100 rounded-full h-2">
+                                                            <div className={`${barColor} h-2 rounded-full transition-all duration-1000`} style={{ width: `${percent}%` }}></div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 font-bold text-slate-700">{percent}%</td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        {percent === 100 ? <span className="text-emerald-500 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-lg">Complete</span> : 
+                                                          percent > 0 ? <span className="text-blue-500 text-xs font-bold bg-blue-50 px-2 py-1 rounded-lg">Ongoing</span> : 
+                                                          <span className="text-slate-300">-</span>}
+                                                    </td>
+                                                </tr>
+                                                {expandedMonth === i && (
+                                                    <tr className="bg-slate-50/50">
+                                                        <td colSpan="5" className="px-6 py-4">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                                {monthTasks.length > 0 ? monthTasks.map(t => {
+                                                                    const conf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
+                                                                    const remarkText = t.remark ? ` (${t.remark})` : '';
+                                                                    return (
+                                                                        <div key={t.id} className="bg-white p-3 rounded-lg border border-slate-100 text-xs text-slate-600 flex justify-between items-center shadow-sm">
+                                                                            <span className="truncate max-w-[150px] font-medium">{t.title}{remarkText}</span>
+                                                                            <span className={`px-2 py-0.5 rounded text-[10px] ${conf.color.replace('bg-', 'bg-opacity-20 bg-')}`}>{conf.label}</span>
+                                                                        </div>
+                                                                    );
+                                                                }) : <span className="text-slate-400 italic">No tasks for this month</span>}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -738,6 +832,7 @@
           const [showHistory, setShowHistory] = useState(false);
           
           const workerRef = useRef(null);
+          const isFirstLoad = useRef(true);
 
           // --- Helper Functions ---
           const addToast = (message, type = 'success', undoAction = null) => {
@@ -746,6 +841,20 @@
             setTimeout(() => removeToast(id), 5000);
           };
           const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+          const handleViewTask = (taskId) => {
+              // Flatten tasks to find across all months
+              const allTasks = tasks.flat();
+              const targetTask = allTasks.find(t => t.id === taskId);
+              
+              if (targetTask) {
+                  setActiveTask(targetTask);
+                  setDetailModalOpen(true);
+                  setShowNotif(false); // Close notification dropdown
+              } else {
+                   addToast('Task not found (might be deleted or loading)', 'error');
+              }
+          };
 
           // --- Init ---
           useEffect(() => {
@@ -778,7 +887,27 @@
                   });
                   setTasks(newTasks);
                   
-                  // Check Notifications
+                  // Notifications for new tasks
+                  if (!isFirstLoad.current) {
+                      snap.docChanges().forEach(change => {
+                          if (change.type === 'added') {
+                              const newTask = change.doc.data();
+                              if (newTask.department === 'Graphic') { 
+                                  setNotifications(prev => [{
+                                      id: Date.now() + Math.random(),
+                                      title: 'New Task',
+                                      message: `"${newTask.title}" added by ${newTask.createdBy?.split('@')[0] || 'Guest'}`,
+                                      type: 'info',
+                                      time: 'Just now',
+                                      taskId: change.doc.id 
+                                  }, ...prev]);
+                              }
+                          }
+                      });
+                  }
+                  isFirstLoad.current = false;
+                  
+                  // Check Due Date Notifications
                   const today = new Date().toISOString().split('T')[0];
                   const dueSoon = allTasksFlat.filter(t => t.dueDate === today && t.status !== 'done');
                   if (dueSoon.length > 0) {
@@ -789,7 +918,8 @@
                         title: 'Task Due Today',
                         message: `"${t.title}" is due today!`,
                         type: 'alert',
-                        time: 'Just now'
+                        time: 'Just now',
+                        taskId: t.id
                       }));
                       return [...newNotifs, ...prev];
                     });
@@ -868,7 +998,18 @@
 
           const handleStatusChange = async (taskId, newStatus) => {
             try {
+                // Find task for logging
+                let targetTask = null;
+                for (const monthTasks of tasks) {
+                    targetTask = monthTasks.find(t => t.id === taskId);
+                    if (targetTask) break;
+                }
+
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { status: newStatus });
+                
+                if (targetTask) {
+                    logAudit('UPDATE', `Changed status of "${targetTask.title}" to ${newStatus}`, user);
+                }
             } catch(e) {
                 addToast('Status update failed', 'error');
             }
@@ -878,6 +1019,7 @@
             const newSubtasks = [...task.subtasks];
             newSubtasks[index].completed = !newSubtasks[index].completed;
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { subtasks: newSubtasks });
+            logAudit('UPDATE', `Toggled subtask in "${task.title}"`, user);
           };
 
           // Bulk Actions
@@ -924,16 +1066,18 @@
           return (
             <div className="min-h-screen bg-slate-50 pb-20 relative">
               <ToastContainer toasts={toasts} removeToast={removeToast} />
-              {showNotif && <NotificationDropdown notifications={notifications} onClose={() => setShowNotif(false)} />}
-              <AuditLogModal isOpen={showHistory} onClose={() => setShowHistory(false)} />
+              
+              {/* Mutual Toggle: Close Notif if History open, close History if Notif open */}
+              {showNotif && <NotificationDropdown notifications={notifications} onClose={() => setShowNotif(false)} onViewTask={handleViewTask} />}
+              <AuditLogDropdown isOpen={showHistory} onClose={() => setShowHistory(false)} />
               
               <Navbar 
                 user={user} 
                 activeTab={view} 
                 onSwitchTab={setView} 
                 onLogout={() => signOut(auth)} 
-                toggleHistory={() => setShowHistory(!showHistory)}
-                toggleNotif={() => setShowNotif(!showNotif)}
+                toggleHistory={() => { setShowHistory(!showHistory); if(showNotif) setShowNotif(false); }}
+                toggleNotif={() => { setShowNotif(!showNotif); if(showHistory) setShowHistory(false); }}
                 notifCount={notifications.length}
               />
               
