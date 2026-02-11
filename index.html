@@ -1,517 +1,647 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signInAnonymously, 
-  signOut, 
-  onAuthStateChanged,
-  signInWithCustomToken 
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  setDoc,
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  onSnapshot, 
-  query 
-} from 'firebase/firestore';
-import { 
-  Calendar, 
-  PieChart, 
-  LogOut, 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle, 
-  X, 
-  Image as ImageIcon, 
-  CloudUpload, 
-  Trash2,
-  Edit2,
-  ChevronDown,
-  User,
-  Layers,
-  Rocket,
-  Loader2,
-  Undo,
-  Info,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Production Planner 2025 (Graphic Team)</title>
+    
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
 
-// --- Firebase Configuration ---
-const defaultFirebaseConfig = {
-  apiKey: "AIzaSyBdmGg7vi9QAD04TFM9suKvjoId_HO7s18",
-  authDomain: "fusetaskhyg.firebaseapp.com",
-  projectId: "fusetaskhyg",
-  storageBucket: "fusetaskhyg.firebasestorage.app",
-  messagingSenderId: "667329598644",
-  appId: "1:667329598644:web:79abb5f6a20739d14f73e1"
-};
-
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : defaultFirebaseConfig;
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'graphic-planner-react';
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// --- Constants ---
-const MONTH_NAMES_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-const LAUNCH_MONTHS_TH = ["กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม", "มกราคม (ปีหน้า)"];
-const CHANNELS = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
-const STATUS_CONFIG = {
-  'todo': { label: 'To Do', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  'doing': { label: 'Doing', color: 'bg-blue-50 text-blue-600', dot: 'bg-blue-500' },
-  'draft': { label: 'Review', color: 'bg-purple-50 text-purple-600', dot: 'bg-purple-500' },
-  'done': { label: 'Done', color: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-500' },
-  'cancelled': { label: 'Cancelled', color: 'bg-red-50 text-red-600', dot: 'bg-red-500' }
-};
-const KPI_OPTIONS = [
-  "Financials (1.1)", "Profitability (1.2)", "Reforecasting (1.3)", 
-  "Pricing/Cost (1.4)", "Margin/Cost (1.5)", "New Products (1.6)", 
-  "Customer Exp (2.1)", "Retention/Loyalty (2.2)", "Market Presence (2.3)",
-  "Non-Compliance (5.1)", "SOP Alignment (5.3)", "Cross-BU Synergy (6.1)", 
-  "IBC Collaboration (6.5)", "N/A"
-];
-
-// --- Workers (Blob) ---
-const workerCode = `
-  self.onmessage = async function(e) {
-    const { file, maxWidth, quality } = e.data;
-    try {
-      const bitmap = await createImageBitmap(file);
-      const scale = maxWidth / Math.max(bitmap.width, bitmap.height);
-      const width = Math.floor(bitmap.width * (scale < 1 ? scale : 1));
-      const height = Math.floor(bitmap.height * (scale < 1 ? scale : 1));
-      const offscreen = new OffscreenCanvas(width, height);
-      const ctx = offscreen.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      const blob = await offscreen.convertToBlob({ type: 'image/jpeg', quality });
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = () => self.postMessage({ success: true, url: reader.result });
-    } catch (err) {
-      self.postMessage({ success: false, error: err.message });
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Import Map for React & Firebase Modules -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "lucide-react": "https://esm.sh/lucide-react@0.330.0"
+      }
     }
-  };
-`;
+    </script>
 
-// --- Components ---
-
-// 1. Toast Notification System
-const ToastContainer = ({ toasts, removeToast }) => (
-  <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
-    {toasts.map(toast => (
-      <div key={toast.id} className={`flex items-center gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md animate-slideIn ${
-        toast.type === 'success' ? 'bg-emerald-50/90 border-emerald-100 text-emerald-800' :
-        toast.type === 'error' ? 'bg-red-50/90 border-red-100 text-red-800' :
-        'bg-white/90 border-slate-100 text-slate-800'
-      }`}>
-        {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-500" />}
-        {toast.type === 'error' && <XCircle size={20} className="text-red-500" />}
-        {toast.type === 'info' && <Info size={20} className="text-blue-500" />}
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; color: #334155; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        <div className="text-sm font-medium">{toast.message}</div>
+        /* Animations */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .animate-slideIn { animation: slideIn 0.3s ease-out forwards; }
+        .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
+        .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; }
         
-        {toast.undoAction && (
-          <button 
-            onClick={() => { toast.undoAction(); removeToast(toast.id); }}
-            className="ml-2 px-3 py-1 bg-white/50 hover:bg-white rounded-lg text-xs font-bold border border-emerald-200 transition-colors flex items-center gap-1"
-          >
-            <Undo size={12} /> Undo
-          </button>
-        )}
-        
-        <button onClick={() => removeToast(toast.id)} className="ml-1 opacity-50 hover:opacity-100"><X size={16} /></button>
-      </div>
-    ))}
-  </div>
-);
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-// 2. Custom Confirmation Modal
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, loading }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center animate-scaleIn">
-        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full mx-auto flex items-center justify-center mb-4">
-          <AlertTriangle size={32} />
-        </div>
-        <h3 className="text-xl font-bold text-slate-800 mb-2">{title}</h3>
-        <p className="text-slate-500 text-sm mb-6">{message}</p>
-        <div className="flex gap-3 justify-center">
-          <button onClick={onCancel} disabled={loading} className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition disabled:opacity-50">
-            ยกเลิก
-          </button>
-          <button onClick={onConfirm} disabled={loading} className="px-5 py-2.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition disabled:opacity-50 flex items-center gap-2">
-            {loading && <Loader2 size={16} className="animate-spin" />} ยืนยันลบ
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.3); }
+        .modal-backdrop { background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
+        .loader {
+            border: 3px solid #f3f3f3; border-top: 3px solid #14b8a6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-const LoginOverlay = ({ onLogin, onGuest, loading, error }) => (
-  <div className="fixed inset-0 z-[60] bg-slate-50 flex items-center justify-center p-4">
-    <div className="bg-white/80 backdrop-blur-md p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-white">
-      <div className="mb-8 flex justify-center">
-        <div className="w-20 h-20 bg-gradient-to-tr from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg rotate-3">
-           <Layers className="text-white w-10 h-10 -rotate-3" />
-        </div>
-      </div>
-      <h2 className="text-3xl font-bold text-slate-800 mb-1 text-center">Welcome Back</h2>
-      <p className="text-slate-500 text-sm mb-8 text-center">Production Planner 2025</p>
-      
-      <form onSubmit={onLogin} className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Email</label>
-          <input name="email" type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="name@company.com" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Password</label>
-          <input name="password" type="password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="••••••••" required />
-        </div>
-        {error && <div className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{error}</div>}
-        <button type="submit" disabled={loading} className="w-full py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition font-bold shadow-lg flex justify-center items-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
-          {loading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
-        </button>
-      </form>
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { 
+          getAuth, 
+          signInWithEmailAndPassword, 
+          signInAnonymously, 
+          signOut, 
+          onAuthStateChanged,
+          signInWithCustomToken 
+        } from 'firebase/auth';
+        import { 
+          getFirestore, 
+          collection, 
+          addDoc, 
+          setDoc,
+          updateDoc, 
+          deleteDoc, 
+          doc, 
+          onSnapshot, 
+          query 
+        } from 'firebase/firestore';
+        import { 
+          Calendar, PieChart, LogOut, Plus, Search, Filter, MoreHorizontal, CheckCircle, 
+          Clock, AlertCircle, X, Image as ImageIcon, CloudUpload, Trash2, Edit2, 
+          ChevronDown, User, Layers, Rocket, Loader2, Undo, Info, CheckCircle2, 
+          XCircle, AlertTriangle, Bell, ListChecks, History, Shield, CheckSquare, Square
+        } from 'lucide-react';
 
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-        <div className="relative flex justify-center text-xs"><span className="px-2 bg-slate-50 text-slate-400">or continue as</span></div>
-      </div>
+        // --- Firebase Configuration ---
+        const defaultFirebaseConfig = {
+            apiKey: "AIzaSyBdmGg7vi9QAD04TFM9suKvjoId_HO7s18",
+            authDomain: "fusetaskhyg.firebaseapp.com",
+            projectId: "fusetaskhyg",
+            storageBucket: "fusetaskhyg.firebasestorage.app",
+            messagingSenderId: "667329598644",
+            appId: "1:667329598644:web:79abb5f6a20739d14f73e1"
+        };
+        const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : defaultFirebaseConfig;
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'graphic-planner-react';
+        const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
 
-      <button onClick={onGuest} disabled={loading} className="w-full py-3 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition font-medium text-sm flex justify-center items-center gap-2 border border-slate-200 shadow-sm disabled:opacity-70">
-        Guest Mode
-      </button>
-    </div>
-  </div>
-);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-const Navbar = ({ user, activeTab, onSwitchTab, onLogout }) => (
-  <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/50">
-    <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
-            <Layers size={20} />
+        // --- Constants ---
+        const MONTH_NAMES_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+        const LAUNCH_MONTHS_TH = ["กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม", "มกราคม (ปีหน้า)"];
+        const CHANNELS = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
+        const STATUS_CONFIG = {
+            'todo': { label: 'To Do', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+            'doing': { label: 'Doing', color: 'bg-blue-50 text-blue-600', dot: 'bg-blue-500' },
+            'draft': { label: 'Review', color: 'bg-purple-50 text-purple-600', dot: 'bg-purple-500' },
+            'done': { label: 'Done', color: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-500' },
+            'cancelled': { label: 'Cancelled', color: 'bg-red-50 text-red-600', dot: 'bg-red-500' }
+        };
+        const KPI_OPTIONS = [
+            "Financials (1.1)", "Profitability (1.2)", "Reforecasting (1.3)", 
+            "Pricing/Cost (1.4)", "Margin/Cost (1.5)", "New Products (1.6)", 
+            "Customer Exp (2.1)", "Retention/Loyalty (2.2)", "Market Presence (2.3)",
+            "Non-Compliance (5.1)", "SOP Alignment (5.3)", "Cross-BU Synergy (6.1)", 
+            "IBC Collaboration (6.5)", "N/A"
+        ];
+
+        // --- Workers (Blob) ---
+        const workerCode = `
+          self.onmessage = async function(e) {
+            const { file, maxWidth, quality } = e.data;
+            try {
+              const bitmap = await createImageBitmap(file);
+              const scale = maxWidth / Math.max(bitmap.width, bitmap.height);
+              const width = Math.floor(bitmap.width * (scale < 1 ? scale : 1));
+              const height = Math.floor(bitmap.height * (scale < 1 ? scale : 1));
+              const offscreen = new OffscreenCanvas(width, height);
+              const ctx = offscreen.getContext('2d');
+              ctx.drawImage(bitmap, 0, 0, width, height);
+              const blob = await offscreen.convertToBlob({ type: 'image/jpeg', quality });
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => self.postMessage({ success: true, url: reader.result });
+            } catch (err) {
+              self.postMessage({ success: false, error: err.message });
+            }
+          };
+        `;
+
+        // --- Audit Log Helper ---
+        const logAudit = async (action, details, user) => {
+          if (!user || user.isAnonymous) return;
+          try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'), {
+              action,
+              details,
+              user: user.email,
+              timestamp: new Date().toISOString()
+            });
+          } catch (e) {
+            console.error("Audit log failed", e);
+          }
+        };
+
+        // --- Components ---
+
+        const NotificationDropdown = ({ notifications, onClose }) => (
+          <div className="absolute top-16 right-4 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-slideIn">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-sm text-slate-700">Notifications</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-sm">No new notifications</div>
+              ) : (
+                notifications.map((notif, idx) => (
+                  <div key={idx} className="p-3 border-b border-slate-50 hover:bg-slate-50 transition flex gap-3">
+                    <div className={`mt-1 shrink-0 ${notif.type === 'alert' ? 'text-red-500' : 'text-blue-500'}`}>
+                      {notif.type === 'alert' ? <AlertCircle size={16} /> : <Info size={16} />}
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-700 font-medium">{notif.title}</p>
+                      <p className="text-xs text-slate-500">{notif.message}</p>
+                      <span className="text-[10px] text-slate-400 mt-1 block">{notif.time}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          <div className="hidden md:block">
-            <h1 className="text-base font-bold text-slate-800 leading-none">Production</h1>
-            <p className="text-[10px] text-teal-600 font-medium tracking-wide">GRAPHIC TEAM</p>
-          </div>
-        </div>
-        <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block"></div>
-        <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-            <User size={14} />
-          </div>
-          <span className="text-xs text-slate-600 font-medium truncate max-w-[100px]">
-            {user?.isAnonymous ? 'Guest' : user?.email?.split('@')[0]}
-          </span>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-3">
-        <button 
-          onClick={() => onSwitchTab('planner')} 
-          className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'planner' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}
-        >
-          <Calendar size={16} /> <span className="hidden sm:inline">Planner</span>
-        </button>
-        <button 
-          onClick={() => onSwitchTab('dashboard')} 
-          className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}
-        >
-          <PieChart size={16} /> <span className="hidden sm:inline">Dashboard</span>
-        </button>
-        {!user?.isAnonymous && (
-          <button onClick={onLogout} className="ml-2 text-slate-300 hover:text-red-500 transition p-2">
-            <LogOut size={18} />
-          </button>
-        )}
-      </div>
-    </div>
-  </nav>
-);
+        );
 
-const MonthNavigator = ({ currentMonth, onSelectMonth, counts }) => (
-  <div className="bg-white rounded-3xl shadow-sm p-5 border border-slate-100 h-fit sticky top-24">
-    <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-50">
-      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Timeline</span>
-      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-full font-medium">2025</span>
-    </div>
-    <div className="space-y-1.5">
-      {MONTH_NAMES_TH.map((m, i) => (
-        <button 
-          key={i} 
-          onClick={() => onSelectMonth(i)} 
-          className={`w-full text-left px-4 py-3 rounded-2xl flex justify-between items-center text-sm transition-all border ${i === currentMonth ? 'bg-teal-50 text-teal-700 border-teal-100 font-bold shadow-sm' : 'hover:bg-slate-50 text-slate-500 border-transparent'}`}
-        >
-          <span>{m}</span>
-          {counts[i] > 0 && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full min-w-[1.5rem] text-center transition-colors ${i === currentMonth ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-              {counts[i]}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  </div>
-);
+        const AuditLogModal = ({ isOpen, onClose }) => {
+          const [logs, setLogs] = useState([]);
+          const [loading, setLoading] = useState(true);
 
-const TaskCard = ({ task, onClick, onEdit, onDelete, onStatusChange, isGuest, isProcessing }) => {
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
-  
-  let images = task.attachments || [];
-  if (images.length === 0 && task.imageUrl) images = [{ url: task.imageUrl }];
-  const hasImages = images.length > 0;
-  
-  const displayImages = images.slice(0, 4);
-  const remainCount = images.length - 4;
+          useEffect(() => {
+            if (!isOpen) return;
+            setLoading(true);
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'audit_logs'));
+            const unsub = onSnapshot(q, (snap) => {
+              const data = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+              setLogs(data);
+              setLoading(false);
+            });
+            return unsub;
+          }, [isOpen]);
 
-  return (
-    <div 
-      onClick={() => onClick(task)}
-      className={`bg-white p-6 rounded-3xl border border-slate-100 relative group cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg ${task.status === 'cancelled' ? 'opacity-60 grayscale' : ''}`}
-    >
-      <div className={`absolute top-7 left-6 w-2 h-2 rounded-full ring-4 ring-slate-50 ${task.priority === 'C' ? 'bg-red-400' : (task.status === 'done' ? 'bg-emerald-400' : 'bg-slate-300')}`}></div>
-      
-      <div className="flex justify-between items-start mb-2 pl-6">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 inline-block mb-1.5">{task.channel}</span>
-          <h4 className="font-bold text-slate-800 text-lg leading-snug group-hover:text-teal-600 transition-colors">{task.title}</h4>
-        </div>
-        {!isGuest && (
-          <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-teal-500 shadow-sm flex items-center justify-center transition"><Edit2 size={12} /></button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-red-500 shadow-sm flex items-center justify-center transition"><Trash2 size={12} /></button>
-          </div>
-        )}
-      </div>
+          if (!isOpen) return null;
 
-      <div className="pl-6">
-        {task.desc ? (
-          <p className="text-xs text-slate-500 font-light mb-1 leading-relaxed line-clamp-2">{task.desc}</p>
-        ) : <div className="h-2"></div>}
+          return (
+            <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><History size={20} /> Activity Log</h3>
+                  <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {loading ? <div className="flex justify-center p-8"><Loader2 className="animate-spin text-teal-500" /></div> : 
+                   logs.length === 0 ? <div className="text-center text-slate-400 p-8">No history found</div> : (
+                    <div className="space-y-3">
+                      {logs.map(log => (
+                        <div key={log.id} className="flex gap-3 text-sm p-3 bg-slate-50 rounded-xl border border-slate-100">
+                          <div className="shrink-0 mt-0.5 text-slate-400"><User size={16} /></div>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="font-bold text-slate-700">{log.user?.split('@')[0]}</span>
+                              <span className="text-[10px] text-slate-400">{new Date(log.timestamp).toLocaleString()}</span>
+                            </div>
+                            <p className="text-slate-600 mt-1"><span className="font-medium text-teal-600 uppercase text-xs px-1.5 py-0.5 bg-teal-50 rounded mr-1">{log.action}</span> {log.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        };
 
-        {task.remark && (
-          <div className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-100 text-[10px] text-amber-700 font-medium">
-            <AlertCircle size={10} className="text-amber-400" /> {task.remark}
-          </div>
-        )}
-
-        {hasImages && (
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            {displayImages.map((img, idx) => (
-              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-slate-50 border border-slate-100">
-                <img src={img.url} alt="attachment" className="w-full h-full object-cover" loading="lazy" />
-                {idx === 3 && remainCount > 0 && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[2px]">+{remainCount}</div>
-                )}
+        const ToastContainer = ({ toasts, removeToast }) => (
+          <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+            {toasts.map(toast => (
+              <div key={toast.id} className={`flex items-center gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md animate-slideIn ${
+                toast.type === 'success' ? 'bg-emerald-50/90 border-emerald-100 text-emerald-800' :
+                toast.type === 'error' ? 'bg-red-50/90 border-red-100 text-red-800' :
+                'bg-white/90 border-slate-100 text-slate-800'
+              }`}>
+                {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-500" />}
+                {toast.type === 'error' && <XCircle size={20} className="text-red-500" />}
+                {toast.type === 'info' && <Info size={20} className="text-blue-500" />}
+                <div className="text-sm font-medium">{toast.message}</div>
+                {toast.undoAction && <button onClick={() => { toast.undoAction(); removeToast(toast.id); }} className="ml-2 px-3 py-1 bg-white/50 hover:bg-white rounded-lg text-xs font-bold border border-emerald-200 transition-colors flex items-center gap-1"><Undo size={12} /> Undo</button>}
+                <button onClick={() => removeToast(toast.id)} className="ml-1 opacity-50 hover:opacity-100"><X size={16} /></button>
               </div>
             ))}
           </div>
-        )}
+        );
 
-        <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-slate-50 text-[11px] text-slate-400 font-medium">
-          {task.kpi && task.kpi !== 'N/A' && (
-            <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">KPI: {task.kpi.split(' ')[0]}</span>
-          )}
-          {task.dueDate && (
-            <span className="flex items-center gap-1"><Clock size={12} /> {new Date(task.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}</span>
-          )}
-          {task.priority === 'C' && <span className="text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-100">Critical</span>}
-          <div className="ml-auto flex items-center gap-1.5 opacity-70">
-            <User size={12} /> {task.createdBy?.split('@')[0] || 'Guest'}
-          </div>
-        </div>
+        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, loading }) => {
+          if (!isOpen) return null;
+          return (
+            <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center animate-scaleIn">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full mx-auto flex items-center justify-center mb-4">
+                  <AlertTriangle size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">{title}</h3>
+                <p className="text-slate-500 text-sm mb-6">{message}</p>
+                <div className="flex gap-3 justify-center">
+                  <button onClick={onCancel} disabled={loading} className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition disabled:opacity-50">
+                    ยกเลิก
+                  </button>
+                  <button onClick={onConfirm} disabled={loading} className="px-5 py-2.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition disabled:opacity-50 flex items-center gap-2">
+                    {loading && <Loader2 size={16} className="animate-spin" />} ยืนยันลบ
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        };
 
-        <div className="flex items-center justify-between mt-4">
-          {!isGuest ? (
-            <div className="relative">
-              <button 
-                disabled={isProcessing}
-                onClick={(e) => { e.stopPropagation(); setShowStatusMenu(!showStatusMenu); }} 
-                className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 transition-all hover:shadow-sm ${statusConfig.color} bg-white/50 backdrop-blur-sm disabled:opacity-50`}
-              >
-                {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></div>} {statusConfig.label} <ChevronDown size={12} className="opacity-40" />
+        const LoginOverlay = ({ onLogin, onGuest, loading, error }) => (
+          <div className="fixed inset-0 z-[60] bg-slate-50 flex items-center justify-center p-4">
+            <div className="bg-white/80 backdrop-blur-md p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-white">
+              <div className="mb-8 flex justify-center">
+                <div className="w-20 h-20 bg-gradient-to-tr from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg rotate-3">
+                   <Layers className="text-white w-10 h-10 -rotate-3" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-slate-800 mb-1 text-center">Welcome Back</h2>
+              <p className="text-slate-500 text-sm mb-8 text-center">Production Planner 2025</p>
+              
+              <form onSubmit={onLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Email</label>
+                  <input name="email" type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="name@company.com" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Password</label>
+                  <input name="password" type="password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="••••••••" required />
+                </div>
+                {error && <div className="text-red-500 text-xs text-center bg-red-50 p-2 rounded-lg">{error}</div>}
+                <button type="submit" disabled={loading} className="w-full py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition font-bold shadow-lg flex justify-center items-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
+                </button>
+              </form>
+
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+                <div class="relative flex justify-center text-xs"><span className="px-2 bg-slate-50 text-slate-400">or continue as</span></div>
+              </div>
+
+              <button onClick={onGuest} disabled={loading} className="w-full py-3 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition font-medium text-sm flex justify-center items-center gap-2 border border-slate-200 shadow-sm disabled:opacity-70">
+                Guest Mode
               </button>
-              {showStatusMenu && !isProcessing && (
-                <div className="absolute bottom-full left-0 mb-2 w-36 bg-white shadow-xl rounded-2xl border border-slate-100 z-20 overflow-hidden py-1">
-                  {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
-                    <div 
-                      key={key} 
-                      onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, key); setShowStatusMenu(false); }}
-                      className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-xs flex items-center gap-2 text-slate-600 transition-colors"
-                    >
-                      <div className={`w-2 h-2 rounded-full ${conf.dot}`}></div> {conf.label}
-                    </div>
-                  ))}
+            </div>
+          </div>
+        );
+
+        const Navbar = ({ user, activeTab, onSwitchTab, onLogout, toggleHistory, toggleNotif, notifCount }) => (
+          <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/50">
+            <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-md"><Layers size={20} /></div>
+                  <div className="hidden md:block"><h1 className="text-base font-bold text-slate-800 leading-none">Production</h1><p className="text-[10px] text-teal-600 font-medium tracking-wide">GRAPHIC TEAM</p></div>
+                </div>
+                <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block"></div>
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-400"><User size={14} /></div>
+                  <span className="text-xs text-slate-600 font-medium truncate max-w-[100px]">{user?.isAnonymous ? 'Guest' : user?.email?.split('@')[0]}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => onSwitchTab('planner')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'planner' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><Calendar size={16} /> <span className="hidden sm:inline">Planner</span></button>
+                <button onClick={() => onSwitchTab('dashboard')} className={`px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' : 'text-slate-600 hover:bg-slate-50'}`}><PieChart size={16} /> <span className="hidden sm:inline">Dashboard</span></button>
+                
+                {!user?.isAnonymous && (
+                  <>
+                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                    <button onClick={toggleNotif} className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition">
+                      <Bell size={18} />
+                      {notifCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
+                    </button>
+                    <button onClick={toggleHistory} className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition"><History size={18} /></button>
+                    <button onClick={onLogout} className="p-2 text-slate-300 hover:text-red-500 transition"><LogOut size={18} /></button>
+                  </>
+                )}
+              </div>
+            </div>
+          </nav>
+        );
+
+        const MonthNavigator = ({ currentMonth, onSelectMonth, counts }) => (
+          <div className="bg-white rounded-3xl shadow-sm p-5 border border-slate-100 h-fit sticky top-24">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-50">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Timeline</span>
+              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-full font-medium">2025</span>
+            </div>
+            <div className="space-y-1.5">
+              {MONTH_NAMES_TH.map((m, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => onSelectMonth(i)} 
+                  className={`w-full text-left px-4 py-3 rounded-2xl flex justify-between items-center text-sm transition-all border ${i === currentMonth ? 'bg-teal-50 text-teal-700 border-teal-100 font-bold shadow-sm' : 'hover:bg-slate-50 text-slate-500 border-transparent'}`}
+                >
+                  <span>{m}</span>
+                  {counts[i] > 0 && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full min-w-[1.5rem] text-center transition-colors ${i === currentMonth ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      {counts[i]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
+        const TaskCard = ({ task, onClick, onEdit, onDelete, onStatusChange, isGuest, isProcessing, isSelectMode, isSelected, onToggleSelect }) => {
+          const [showStatusMenu, setShowStatusMenu] = useState(false);
+          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
+          const images = task.attachments || (task.imageUrl ? [{ url: task.imageUrl }] : []);
+          const displayImages = images.slice(0, 4);
+          const remainCount = images.length - 4;
+
+          const subtaskProgress = useMemo(() => {
+            if (!task.subtasks || task.subtasks.length === 0) return null;
+            const completed = task.subtasks.filter(s => s.completed).length;
+            return { completed, total: task.subtasks.length, percent: Math.round((completed / task.subtasks.length) * 100) };
+          }, [task.subtasks]);
+
+          return (
+            <div onClick={() => isSelectMode ? onToggleSelect(task.id) : onClick(task)} 
+              className={`bg-white p-6 rounded-3xl border relative group cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg ${task.status === 'cancelled' ? 'opacity-60 grayscale' : ''} ${isSelected ? 'border-teal-500 ring-2 ring-teal-100 bg-teal-50/30' : 'border-slate-100'}`}
+            >
+              {isSelectMode && (
+                <div className="absolute top-4 right-4 z-10">
+                  {isSelected ? <CheckSquare className="text-teal-500 fill-teal-50" size={24} /> : <Square className="text-slate-300" size={24} />}
                 </div>
               )}
-            </div>
-          ) : (
-            <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${statusConfig.color}`}>
-              {statusConfig.label}
-            </span>
-          )}
-          <button className="text-xs font-bold text-slate-400 hover:text-teal-600 transition flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-teal-50">
-            Details
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TaskDetailModal = ({ task, onClose, onEdit, isGuest }) => {
-  if (!task) return null;
-  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
-  const images = task.attachments && task.attachments.length > 0 ? task.attachments : (task.imageUrl ? [{url: task.imageUrl}] : []);
-
-  return (
-    <div className="fixed inset-0 z-[65] flex items-center justify-center modal-backdrop fade-in p-4" onClick={onClose}>
-      <div className="bg-white/95 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-white/50 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="px-8 py-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-start shrink-0">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full mb-3 inline-block shadow-sm">{task.channel}</span>
-            <h3 className="font-bold text-2xl text-slate-800 leading-tight">{task.title}</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition"><X size={18} /></button>
-        </div>
-        
-        <div className="p-8 overflow-y-auto space-y-8">
-          <div className="flex flex-wrap gap-4 items-center justify-between p-1">
-            <div className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${statusConfig.color}`}>
-              <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></div> {statusConfig.label}
-            </div>
-            <div className="flex gap-6 text-sm text-slate-500 font-medium">
-              <div className={`flex items-center gap-2 ${task.priority === 'C' ? 'text-red-500 font-bold' : ''}`}>
-                Priority: {task.priority === 'C' ? 'High' : 'Normal'}
-              </div>
-              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                <Clock size={14} /> {task.dueDate ? new Date(task.dueDate).toLocaleDateString('th-TH') : '-'}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-            <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><Filter size={12} /> Description</h4>
-            <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-light">{task.desc || '-'}</p>
-          </div>
-
-          {task.remark && (
-            <div className="bg-amber-50/80 p-5 rounded-2xl border border-amber-100/50">
-              <h4 className="text-xs font-bold text-amber-600 uppercase mb-2 flex items-center gap-2"><AlertCircle size={12} /> Remark</h4>
-              <p className="text-slate-700 text-sm font-medium">{task.remark}</p>
-            </div>
-          )}
-
-          {images.length > 0 && (
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Attachments</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {images.map((img, i) => (
-                  <div key={i} className="aspect-video rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90">
-                    <img src={img.url} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center text-xs text-slate-400 border-t border-slate-100 pt-6">
-            <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-              <span className="font-bold text-slate-500">KPI:</span> {task.kpi || 'N/A'}
-            </div>
-            <div className="flex items-center gap-2">
-              <span>Created by</span>
-              <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md">{task.createdBy?.split('@')[0] || 'Guest'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-8 py-5 bg-white border-t border-slate-100 flex justify-end gap-3 shrink-0">
-          {!isGuest && (
-            <button onClick={() => { onClose(); onEdit(task); }} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-full transition flex items-center gap-2 border border-slate-200">
-              <Edit2 size={14} /> Edit Task
-            </button>
-          )}
-          <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-full shadow-lg transition">Close</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AddTaskModal = ({ isOpen, onClose, onSave, editingTask, workerRef, isSaving }) => {
-    if (!isOpen) return null;
-    const [formData, setFormData] = useState({ title: '', desc: '', remark: '', monthIndex: new Date().getMonth(), dueDate: '', channel: CHANNELS[0], priority: 'S', kpi: KPI_OPTIONS[0], attachments: [] });
-    
-    useEffect(() => {
-        if (editingTask) {
-            setFormData({ ...editingTask, attachments: editingTask.attachments || (editingTask.imageUrl ? [{url: editingTask.imageUrl}] : []) });
-        }
-    }, [editingTask]);
-
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleImageSelect = (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
-        const worker = workerRef.current;
-        files.forEach((file) => {
-            if (worker) {
-                worker.postMessage({ file, maxWidth: 800, quality: 0.7 });
-                worker.onmessage = (event) => {
-                    if (event.data.success) {
-                        setFormData(prev => ({ ...prev, attachments: [...prev.attachments, { url: event.data.url, caption: '' }] }));
-                    }
-                };
-            }
-        });
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop fade-in p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
-                <div className="px-6 py-5 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center shrink-0">
-                    <h3 className="font-bold text-xl text-slate-800">{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex items-center justify-center"><X size={18} /></button>
+              
+              <div className={`absolute top-7 left-6 w-2 h-2 rounded-full ring-4 ring-slate-50 ${task.priority === 'C' ? 'bg-red-400' : (task.status === 'done' ? 'bg-emerald-400' : 'bg-slate-300')}`}></div>
+              
+              <div className="flex justify-between items-start mb-2 pl-6">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 inline-block mb-1.5">{task.channel}</span>
+                  <h4 className="font-bold text-slate-800 text-lg leading-snug group-hover:text-teal-600 transition-colors">{task.title}</h4>
                 </div>
-                <div className="p-6 space-y-5 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-5">
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Month</label><select name="monthIndex" value={formData.monthIndex} onChange={handleChange} className="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-2.5 text-sm outline-none">{MONTH_NAMES_TH.map((m, i) => <option key={i} value={i}>{m}</option>)}</select></div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Due Date</label>
-                            <div className="relative">
-                                <input name="dueDate" type="date" value={formData.dueDate} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
-                                <div className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">ค.ศ.</div>
+                {!isGuest && !isSelectMode && (
+                  <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-teal-500 shadow-sm flex items-center justify-center transition"><Edit2 size={12} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-red-500 shadow-sm flex items-center justify-center transition"><Trash2 size={12} /></button>
+                  </div>
+                )}
+              </div>
+
+              <div className="pl-6">
+                {task.desc ? <p className="text-xs text-slate-500 font-light mb-1 leading-relaxed line-clamp-2">{task.desc}</p> : <div className="h-2"></div>}
+                {task.remark && <div className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-100 text-[10px] text-amber-700 font-medium"><AlertCircle size={10} className="text-amber-400" /> {task.remark}</div>}
+                
+                {subtaskProgress && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                      <span><ListChecks size={10} className="inline mr-1"/> Subtasks</span>
+                      <span>{subtaskProgress.completed}/{subtaskProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-teal-400 h-1.5 rounded-full transition-all duration-500" style={{ width: `${subtaskProgress.percent}%` }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {images.length > 0 && (
+                  <div className="mt-4 grid grid-cols-4 gap-2">
+                    {displayImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-slate-50 border border-slate-100">
+                        <img src={img.url} alt="attachment" className="w-full h-full object-cover" loading="lazy" />
+                        {idx === 3 && remainCount > 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[2px]">+{remainCount}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-slate-50 text-[11px] text-slate-400 font-medium">
+                  {task.kpi && task.kpi !== 'N/A' && <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">KPI: {task.kpi.split(' ')[0]}</span>}
+                  {task.dueDate && <span className="flex items-center gap-1"><Clock size={12} /> {new Date(task.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}</span>}
+                  {task.priority === 'C' && <span className="text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-100">Critical</span>}
+                  <div className="ml-auto flex items-center gap-1.5 opacity-70"><User size={12} /> {task.createdBy?.split('@')[0] || 'Guest'}</div>
+                </div>
+
+                <div className="flex items-center justify-between mt-4">
+                  {!isGuest ? (
+                    <div className="relative">
+                      <button disabled={isProcessing} onClick={(e) => { e.stopPropagation(); setShowStatusMenu(!showStatusMenu); }} className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 transition-all hover:shadow-sm ${statusConfig.color} bg-white/50 backdrop-blur-sm disabled:opacity-50`}>
+                        {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></div>} {statusConfig.label} <ChevronDown size={12} className="opacity-40" />
+                      </button>
+                      {showStatusMenu && !isProcessing && (
+                        <div className="absolute bottom-full left-0 mb-2 w-36 bg-white shadow-xl rounded-2xl border border-slate-100 z-20 overflow-hidden py-1">
+                          {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
+                            <div key={key} onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, key); setShowStatusMenu(false); }} className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-xs flex items-center gap-2 text-slate-600 transition-colors">
+                              <div className={`w-2 h-2 rounded-full ${conf.dot}`}></div> {conf.label}
                             </div>
+                          ))}
                         </div>
+                      )}
                     </div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Task Name</label><input name="title" type="text" value={formData.title} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium outline-none" placeholder="Task name..." /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Description</label><textarea name="desc" rows="3" value={formData.desc} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none bg-slate-50" placeholder="Details..."></textarea></div>
-                    <div><label className="block text-xs font-bold text-amber-500 uppercase mb-1.5 ml-1">Remark</label><input name="remark" type="text" value={formData.remark} onChange={handleChange} className="w-full border border-amber-200 bg-amber-50 rounded-xl px-4 py-2.5 text-sm outline-none text-amber-900" placeholder="Note..." /></div>
-                    <div className="border-t border-slate-100 pt-5"><label className="block text-xs font-bold text-slate-400 uppercase mb-3">Attachments</label><div className="space-y-3 mb-3">{formData.attachments.map((att, i) => <div key={i} className="flex gap-3 items-center bg-slate-50 p-2 rounded-lg"><div className="w-12 h-12 shrink-0 rounded overflow-hidden"><img src={att.url} className="w-full h-full object-cover" /></div><button onClick={() => setFormData(p => ({...p, attachments: p.attachments.filter((_, idx) => idx !== i)}))} className="ml-auto text-red-400"><Trash2 size={16} /></button></div>)}</div><label className="cursor-pointer bg-slate-50 hover:bg-white text-slate-500 px-4 py-4 rounded-2xl text-sm flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-teal-400 w-full"><ImageIcon size={24} /> <span>Upload Images</span><input type="file" accept="image/*" className="hidden" multiple onChange={handleImageSelect} /></label></div>
-                    <div className="grid grid-cols-2 gap-5 border-t border-slate-100 pt-5">
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Category</label><select name="channel" value={formData.channel} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Priority</label><select name="priority" value={formData.priority} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none"><option value="C">Critical</option><option value="S">Support</option></select></div>
+                  ) : <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${statusConfig.color}`}>{statusConfig.label}</span>}
+                  <button className="text-xs font-bold text-slate-400 hover:text-teal-600 transition flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-teal-50">Details</button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const TaskDetailModal = ({ task, onClose, onEdit, isGuest, onToggleSubtask }) => {
+          if (!task) return null;
+          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
+          const images = task.attachments?.length > 0 ? task.attachments : (task.imageUrl ? [{url: task.imageUrl}] : []);
+
+          return (
+            <div className="fixed inset-0 z-[65] flex items-center justify-center modal-backdrop fade-in p-4" onClick={onClose}>
+              <div className="bg-white/95 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-white/50 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="px-8 py-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-start shrink-0">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full mb-3 inline-block shadow-sm">{task.channel}</span>
+                    <h3 className="font-bold text-2xl text-slate-800 leading-tight">{task.title}</h3>
+                  </div>
+                  <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition"><X size={18} /></button>
+                </div>
+                
+                <div className="p-8 overflow-y-auto space-y-8">
+                  <div className="flex flex-wrap gap-4 items-center justify-between p-1">
+                    <div className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${statusConfig.color}`}>
+                      <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></div> {statusConfig.label}
                     </div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">KPI</label><select name="kpi" value={formData.kpi} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{KPI_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}</select></div>
+                    <div className="flex gap-6 text-sm text-slate-500 font-medium">
+                      <div className={`flex items-center gap-2 ${task.priority === 'C' ? 'text-red-500 font-bold' : ''}`}>Priority: {task.priority === 'C' ? 'High' : 'Normal'}</div>
+                      <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-100"><Clock size={14} /> {task.dueDate ? new Date(task.dueDate).toLocaleDateString('th-TH') : '-'}</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><Filter size={12} /> Description</h4>
+                    <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-light">{task.desc || '-'}</p>
+                  </div>
+
+                  {/* Subtasks Section */}
+                  {task.subtasks && task.subtasks.length > 0 && (
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><ListChecks size={14} /> Subtasks</h4>
+                      <div className="space-y-2">
+                        {task.subtasks.map((st, i) => (
+                          <div key={i} className="flex items-center gap-3 group">
+                            <button 
+                              onClick={() => !isGuest && onToggleSubtask(task, i)}
+                              disabled={isGuest}
+                              className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${st.completed ? 'bg-teal-500 border-teal-500 text-white' : 'border-slate-300 hover:border-teal-400'}`}
+                            >
+                              {st.completed && <CheckCircle2 size={14} />}
+                            </button>
+                            <span className={`text-sm ${st.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{st.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {task.remark && (
+                    <div className="bg-amber-50/80 p-5 rounded-2xl border border-amber-100/50">
+                      <h4 className="text-xs font-bold text-amber-600 uppercase mb-2 flex items-center gap-2"><AlertCircle size={12} /> Remark</h4>
+                      <p className="text-slate-700 text-sm font-medium">{task.remark}</p>
+                    </div>
+                  )}
+
+                  {images.length > 0 && <div><h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Attachments</h4><div className="grid grid-cols-2 md:grid-cols-3 gap-4">{images.map((img, i) => <div key={i} className="aspect-video rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90"><img src={img.url} className="w-full h-full object-cover" /></div>)}</div></div>}
+                  
+                  <div className="flex justify-between items-center text-xs text-slate-400 border-t border-slate-100 pt-6">
+                    <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><span className="font-bold text-slate-500">KPI:</span> {task.kpi || 'N/A'}</div>
+                    <div className="flex items-center gap-2"><span>Created by</span><span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md">{task.createdBy?.split('@')[0] || 'Guest'}</span></div>
+                  </div>
+                </div>
+
+                <div className="px-8 py-5 bg-white border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                  {!isGuest && <button onClick={() => { onClose(); onEdit(task); }} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-full transition flex items-center gap-2 border border-slate-200"><Edit2 size={14} /> Edit Task</button>}
+                  <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-full shadow-lg transition">Close</button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const AddTaskModal = ({ isOpen, onClose, onSave, editingTask, workerRef, isSaving }) => {
+            if (!isOpen) return null;
+            const [formData, setFormData] = useState({ title: '', desc: '', remark: '', monthIndex: new Date().getMonth(), dueDate: '', channel: CHANNELS[0], priority: 'S', kpi: KPI_OPTIONS[0], attachments: [], subtasks: [] });
+            const [newSubtask, setNewSubtask] = useState('');
+
+            useEffect(() => {
+                if (editingTask) {
+                    setFormData({ 
+                      ...editingTask, 
+                      attachments: editingTask.attachments || (editingTask.imageUrl ? [{url: editingTask.imageUrl}] : []),
+                      subtasks: editingTask.subtasks || []
+                    });
+                }
+            }, [editingTask]);
+
+            const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+            
+            const handleAddSubtask = () => {
+              if (!newSubtask.trim()) return;
+              setFormData(prev => ({ ...prev, subtasks: [...prev.subtasks, { title: newSubtask, completed: false }] }));
+              setNewSubtask('');
+            };
+
+            const handleRemoveSubtask = (index) => {
+              setFormData(prev => ({ ...prev, subtasks: prev.subtasks.filter((_, i) => i !== index) }));
+            };
+
+            const handleImageSelect = (e) => {
+                const files = Array.from(e.target.files);
+                if (!files.length) return;
+                const worker = workerRef.current;
+                files.forEach((file) => {
+                    if (worker) {
+                        worker.postMessage({ file, maxWidth: 800, quality: 0.7 });
+                        worker.onmessage = (event) => {
+                            if (event.data.success) {
+                                setFormData(prev => ({ ...prev, attachments: [...prev.attachments, { url: event.data.url, caption: '' }] }));
+                            }
+                        };
+                    }
+                });
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop fade-in p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
+                        <div className="px-6 py-5 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center shrink-0">
+                            <h3 className="font-bold text-xl text-slate-800">{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
+                            <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex items-center justify-center"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-5 overflow-y-auto">
+                            {/* Basic Fields */}
+                            <div className="grid grid-cols-2 gap-5">
+                                <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Month</label><select name="monthIndex" value={formData.monthIndex} onChange={handleChange} className="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-2.5 text-sm outline-none">{MONTH_NAMES_TH.map((m, i) => <option key={i} value={i}>{m}</option>)}</select></div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Due Date</label>
+                                    <div className="relative"><input name="dueDate" type="date" value={formData.dueDate} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none" /><div className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">ค.ศ.</div></div>
+                                </div>
+                            </div>
+                            <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Task Name</label><input name="title" type="text" value={formData.title} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium outline-none" placeholder="Task name..." /></div>
+                            <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Description</label><textarea name="desc" rows="3" value={formData.desc} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none bg-slate-50" placeholder="Details..."></textarea></div>
+                            
+                            {/* Subtasks */}
+                            <div>
+                              <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Subtasks</label>
+                              <div className="flex gap-2 mb-2">
+                                <input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()} className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none" placeholder="Add subtask..." />
+                                <button onClick={handleAddSubtask} className="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl px-3 transition"><Plus size={18}/></button>
+                              </div>
+                              <div className="space-y-1">
+                                {formData.subtasks.map((st, i) => (
+                                  <div key={i} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-sm group">
+                                    <span>{st.title}</span>
+                                    <button onClick={() => handleRemoveSubtask(i)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><X size={14}/></button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div><label className="block text-xs font-bold text-amber-500 uppercase mb-1.5 ml-1">Remark</label><input name="remark" type="text" value={formData.remark} onChange={handleChange} className="w-full border border-amber-200 bg-amber-50 rounded-xl px-4 py-2.5 text-sm outline-none text-amber-900" placeholder="Note..." /></div>
+                            
+                            <div className="border-t border-slate-100 pt-5"><label className="block text-xs font-bold text-slate-400 uppercase mb-3">Attachments</label><div className="space-y-3 mb-3">{formData.attachments.map((att, i) => <div key={i} className="flex gap-3 items-center bg-slate-50 p-2 rounded-lg"><div className="w-12 h-12 shrink-0 rounded overflow-hidden"><img src={att.url} className="w-full h-full object-cover" /></div><button onClick={() => setFormData(p => ({...p, attachments: p.attachments.filter((_, idx) => idx !== i)}))} className="ml-auto text-red-400"><Trash2 size={16} /></button></div>)}</div><label className="cursor-pointer bg-slate-50 hover:bg-white text-slate-500 px-4 py-4 rounded-2xl text-sm flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-teal-400 w-full"><ImageIcon size={24} /> <span>Upload Images</span><input type="file" accept="image/*" className="hidden" multiple onChange={handleImageSelect} /></label></div>
+                            
+                            <div className="grid grid-cols-2 gap-5 border-t border-slate-100 pt-5">
+                                <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Category</label><select name="channel" value={formData.channel} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Priority</label><select name="priority" value={formData.priority} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none"><option value="C">Critical</option><option value="S">Support</option></select></div>
+                            </div>
+                            <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">KPI</label><select name="kpi" value={formData.kpi} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{KPI_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}</select></div>
                 </div>
                 <div className="px-6 py-5 bg-white border-t border-slate-100 flex justify-end gap-3 shrink-0">
                     <button onClick={onClose} disabled={isSaving} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-full transition disabled:opacity-50">Cancel</button>
@@ -524,238 +654,360 @@ const AddTaskModal = ({ isOpen, onClose, onSave, editingTask, workerRef, isSavin
     );
 };
 
-const Dashboard = ({ tasks }) => {
-    const counts = useMemo(() => {
-        const c = { todo: 0, doing: 0, draft: 0, done: 0, cancelled: 0 };
-        tasks.forEach(m => m.forEach(t => c[t.status] && c[t.status]++));
-        return c;
-    }, [tasks]);
+        const Dashboard = ({ tasks }) => {
+            const counts = useMemo(() => {
+                const c = { todo: 0, doing: 0, draft: 0, done: 0, cancelled: 0 };
+                tasks.forEach(m => m.forEach(t => c[t.status] && c[t.status]++));
+                return c;
+            }, [tasks]);
 
-    useEffect(() => {
-        const ctx = document.getElementById('monthlyChart')?.getContext('2d');
-        if (ctx) {
-            const data = tasks.map(m => {
-                const total = m.length;
-                const done = m.filter(t => t.status === 'done').length;
-                return total ? Math.round((done / total) * 100) : 0;
-            });
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: MONTH_NAMES_TH,
-                    datasets: [{
-                        label: 'Progress %', data: data, borderColor: '#14b8a6', backgroundColor: 'rgba(20, 184, 166, 0.1)',
-                        borderWidth: 3, pointBackgroundColor: '#fff', pointBorderColor: '#14b8a6', fill: true, tension: 0.4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } } }
-            });
-        }
-    }, [tasks]);
+            useEffect(() => {
+                const ctx = document.getElementById('monthlyChart')?.getContext('2d');
+                if (ctx) {
+                    const data = tasks.map(m => {
+                        const total = m.length;
+                        const done = m.filter(t => t.status === 'done').length;
+                        return total ? Math.round((done / total) * 100) : 0;
+                    });
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: MONTH_NAMES_TH,
+                            datasets: [{
+                                label: 'Progress %', data: data, borderColor: '#14b8a6', backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                                borderWidth: 3, pointBackgroundColor: '#fff', pointBorderColor: '#14b8a6', fill: true, tension: 0.4
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } } }
+                    });
+                }
+            }, [tasks]);
 
-    return (
-        <div className="space-y-6 fade-in">
-            <h3 className="text-2xl font-bold text-slate-800">Dashboard</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 col-span-2 relative overflow-hidden"><h4 className="font-bold text-slate-800 mb-6 text-lg">Monthly Progress</h4><div className="h-64 relative z-10"><canvas id="monthlyChart"></canvas></div></div>
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                    <h4 className="font-bold text-slate-800 text-lg mb-4">Status</h4>
-                    {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
-                        <div key={key} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span className={`text-xs font-bold uppercase ${conf.color.split(' ')[1]}`}>{conf.label}</span>
-                            <div className={`text-xl font-bold ${conf.color.split(' ')[1]}`}>{counts[key] || 0}</div>
+            return (
+                <div className="space-y-6 fade-in">
+                    <h3 className="text-2xl font-bold text-slate-800">Dashboard</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 col-span-2 relative overflow-hidden"><h4 className="font-bold text-slate-800 mb-6 text-lg">Monthly Progress</h4><div className="h-64 relative z-10"><canvas id="monthlyChart"></canvas></div></div>
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                            <h4 className="font-bold text-slate-800 text-lg mb-4">Status</h4>
+                            {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
+                                <div key={key} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <span className={`text-xs font-bold uppercase ${conf.color.split(' ')[1]}`}>{conf.label}</span>
+                                    <div className={`text-xl font-bold ${conf.color.split(' ')[1]}`}>{counts[key] || 0}</div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </div>
                 </div>
-            </div>
-        </div>
-    );
-};
+            );
+        };
 
-// --- Main App ---
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState('');
-  
-  const [view, setView] = useState('planner');
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [tasks, setTasks] = useState(Array.from({length: 12}, () => []));
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  
-  const [activeTask, setActiveTask] = useState(null);
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
-  const [toasts, setToasts] = useState([]);
-  const [actionLoading, setActionLoading] = useState(false); // Global action loading state
-  
-  const workerRef = useRef(null);
+        // --- Main App ---
+        function App() {
+          const [user, setUser] = useState(null);
+          const [authLoading, setAuthLoading] = useState(true);
+          const [authError, setAuthError] = useState('');
+          
+          const [view, setView] = useState('planner');
+          const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+          const [tasks, setTasks] = useState(Array.from({length: 12}, () => []));
+          const [filter, setFilter] = useState('all');
+          const [search, setSearch] = useState('');
+          
+          const [activeTask, setActiveTask] = useState(null);
+          const [isAddModalOpen, setAddModalOpen] = useState(false);
+          const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+          const [editingTask, setEditingTask] = useState(null);
+          const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+          const [toasts, setToasts] = useState([]);
+          const [actionLoading, setActionLoading] = useState(false);
+          
+          // New States for Features
+          const [isSelectMode, setIsSelectMode] = useState(false);
+          const [selectedTasks, setSelectedTasks] = useState(new Set());
+          const [notifications, setNotifications] = useState([]);
+          const [showNotif, setShowNotif] = useState(false);
+          const [showHistory, setShowHistory] = useState(false);
+          
+          const workerRef = useRef(null);
 
-  // --- Helper Functions ---
-  const addToast = (message, type = 'success', undoAction = null) => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type, undoAction }]);
-    setTimeout(() => removeToast(id), 5000);
-  };
-  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+          // --- Helper Functions ---
+          const addToast = (message, type = 'success', undoAction = null) => {
+            const id = Date.now();
+            setToasts(prev => [...prev, { id, message, type, undoAction }]);
+            setTimeout(() => removeToast(id), 5000);
+          };
+          const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // --- Init ---
-  useEffect(() => {
-    const blob = new Blob([workerCode], { type: "application/javascript" });
-    workerRef.current = new Worker(URL.createObjectURL(blob));
-    
-    const initAuth = async () => {
-      if (initialAuthToken) {
-        try { await signInWithCustomToken(auth, initialAuthToken); }
-        catch (e) { await signInAnonymously(auth); }
-      } else await signInAnonymously(auth);
-    };
-    initAuth();
+          // --- Init ---
+          useEffect(() => {
+            const blob = new Blob([workerCode], { type: "application/javascript" });
+            workerRef.current = new Worker(URL.createObjectURL(blob));
+            
+            const initAuth = async () => {
+              if (initialAuthToken) {
+                try { await signInWithCustomToken(auth, initialAuthToken); }
+                catch (e) { await signInAnonymously(auth); }
+              } else await signInAnonymously(auth);
+            };
+            initAuth();
 
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthLoading(false);
-      if (u) {
-        const cached = localStorage.getItem(`planner_tasks_${appId}`);
-        if (cached) setTasks(JSON.parse(cached));
-        
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
-        onSnapshot(q, (snap) => {
-          const newTasks = Array.from({length: 12}, () => []);
-          snap.forEach((d) => {
-            const t = { id: d.id, ...d.data() };
-            if (t.department === 'Graphic' && t.monthIndex >= 0 && t.monthIndex < 12) newTasks[t.monthIndex].push(t);
-          });
-          setTasks(newTasks);
-          localStorage.setItem(`planner_tasks_${appId}`, JSON.stringify(newTasks));
-        });
-      }
-    });
-    return () => workerRef.current?.terminate();
-  }, []);
+            const unsub = onAuthStateChanged(auth, (u) => {
+              setUser(u);
+              setAuthLoading(false);
+              if (u) {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+                onSnapshot(q, (snap) => {
+                  const newTasks = Array.from({length: 12}, () => []);
+                  const allTasksFlat = [];
+                  snap.forEach((d) => {
+                    const t = { id: d.id, ...d.data() };
+                    if (t.department === 'Graphic' && t.monthIndex >= 0 && t.monthIndex < 12) {
+                      newTasks[t.monthIndex].push(t);
+                      allTasksFlat.push(t);
+                    }
+                  });
+                  setTasks(newTasks);
+                  
+                  // Check Notifications
+                  const today = new Date().toISOString().split('T')[0];
+                  const dueSoon = allTasksFlat.filter(t => t.dueDate === today && t.status !== 'done');
+                  if (dueSoon.length > 0) {
+                    setNotifications(prev => {
+                      const ids = new Set(prev.map(n => n.id));
+                      const newNotifs = dueSoon.filter(t => !ids.has(t.id)).map(t => ({
+                        id: t.id,
+                        title: 'Task Due Today',
+                        message: `"${t.title}" is due today!`,
+                        type: 'alert',
+                        time: 'Just now'
+                      }));
+                      return [...newNotifs, ...prev];
+                    });
+                  }
+                });
+              }
+            });
+            return () => workerRef.current?.terminate();
+          }, []);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); } 
-    catch (err) { setAuthError("Incorrect email/password"); setAuthLoading(false); }
-  };
+          const handleLogin = async (e) => {
+            e.preventDefault();
+            setAuthLoading(true);
+            try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); } 
+            catch (err) { setAuthError("Incorrect email/password"); setAuthLoading(false); }
+          };
 
-  const handleSaveTask = async (data) => {
-    setActionLoading(true);
-    try {
-        const taskData = { ...data, department: 'Graphic', createdBy: user.email || 'Guest' };
-        if (editingTask) {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
-            addToast('แก้ไขงานเรียบร้อยแล้ว');
-        } else {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, status: 'todo', createdAt: new Date().toISOString() });
-            addToast('เพิ่มงานใหม่เรียบร้อยแล้ว');
-        }
-        setAddModalOpen(false); 
-        setEditingTask(null);
-    } catch (e) {
-        addToast('เกิดข้อผิดพลาด โปรดลองใหม่', 'error');
-    } finally {
-        setActionLoading(false);
-    }
-  };
-
-  const handleUndoDelete = async (task) => {
-    try {
-        // Use setDoc to restore with same ID if possible, or just addDoc
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), task);
-        addToast('กู้คืนงานเรียบร้อยแล้ว', 'success');
-    } catch (e) {
-        addToast('กู้คืนไม่สำเร็จ', 'error');
-    }
-  };
-
-  const handleDelete = (task) => {
-    setConfirmModal({
-        isOpen: true,
-        title: 'ลบงาน?',
-        message: 'คุณแน่ใจหรือไม่ว่าต้องการลบงานนี้? การดำเนินการนี้สามารถย้อนกลับได้ด้วยปุ่ม Undo',
-        onConfirm: async () => {
+          const handleSaveTask = async (data) => {
             setActionLoading(true);
             try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id));
-                addToast('ลบงานเรียบร้อยแล้ว', 'success', () => handleUndoDelete(task));
+                const taskData = { ...data, department: 'Graphic', createdBy: user.email || 'Guest' };
+                if (editingTask) {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+                    logAudit('UPDATE', `Updated task "${taskData.title}"`, user);
+                    addToast('Task updated successfully');
+                } else {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, status: 'todo', createdAt: new Date().toISOString() });
+                    logAudit('CREATE', `Created task "${taskData.title}"`, user);
+                    addToast('New task created successfully');
+                }
+                setAddModalOpen(false); 
+                setEditingTask(null);
             } catch (e) {
-                addToast('เกิดข้อผิดพลาดในการลบ', 'error');
+                addToast('Error saving task', 'error');
             } finally {
                 setActionLoading(false);
-                setConfirmModal(prev => ({ ...prev, isOpen: false }));
             }
+          };
+
+          const handleUndoDelete = async (task) => {
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), task);
+                addToast('Task restored', 'success');
+                logAudit('RESTORE', `Restored task "${task.title}"`, user);
+            } catch (e) {
+                addToast('Restore failed', 'error');
+            }
+          };
+
+          const handleDelete = (task) => {
+            setConfirmModal({
+                isOpen: true,
+                title: 'Delete Task?',
+                message: 'Are you sure? This can be undone immediately.',
+                onConfirm: async () => {
+                    setActionLoading(true);
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id));
+                        logAudit('DELETE', `Deleted task "${task.title}"`, user);
+                        addToast('Task deleted', 'success', () => handleUndoDelete(task));
+                    } catch (e) {
+                        addToast('Delete failed', 'error');
+                    } finally {
+                        setActionLoading(false);
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    }
+                }
+            });
+          };
+
+          const handleStatusChange = async (taskId, newStatus) => {
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { status: newStatus });
+            } catch(e) {
+                addToast('Status update failed', 'error');
+            }
+          };
+
+          const handleToggleSubtask = async (task, index) => {
+            const newSubtasks = [...task.subtasks];
+            newSubtasks[index].completed = !newSubtasks[index].completed;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { subtasks: newSubtasks });
+          };
+
+          // Bulk Actions
+          const toggleSelect = (id) => {
+            const newSet = new Set(selectedTasks);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            setSelectedTasks(newSet);
+          };
+
+          const handleBulkAction = async (action) => {
+            if (selectedTasks.size === 0) return;
+            const batch = []; 
+            // Note: Standard firestore batch requires writeBatch() but here we simulate with promises due to abstraction constraints
+            // Actually, let's use parallel promises for simplicity in this demo context
+            setActionLoading(true);
+            try {
+              const promises = Array.from(selectedTasks).map(id => {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id);
+                if (action === 'delete') return deleteDoc(ref);
+                else return updateDoc(ref, { status: action });
+              });
+              await Promise.all(promises);
+              logAudit('BULK', `Performed ${action} on ${selectedTasks.size} tasks`, user);
+              addToast(`Bulk action (${action}) completed`, 'success');
+              setSelectedTasks(new Set());
+              setIsSelectMode(false);
+            } catch (e) {
+              addToast('Bulk action failed', 'error');
+            } finally {
+              setActionLoading(false);
+            }
+          };
+
+          const currentTasks = useMemo(() => {
+            let list = tasks[currentMonth] || [];
+            if (filter !== 'all') list = list.filter(t => t.channel === filter);
+            if (search) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
+            return list;
+          }, [tasks, currentMonth, filter, search]);
+
+          if (!user && !authLoading) return <LoginOverlay onLogin={handleLogin} onGuest={() => signInAnonymously(auth)} loading={authLoading} error={authError} />;
+
+          return (
+            <div className="min-h-screen bg-slate-50 pb-20 relative">
+              <ToastContainer toasts={toasts} removeToast={removeToast} />
+              {showNotif && <NotificationDropdown notifications={notifications} onClose={() => setShowNotif(false)} />}
+              <AuditLogModal isOpen={showHistory} onClose={() => setShowHistory(false)} />
+              
+              <Navbar 
+                user={user} 
+                activeTab={view} 
+                onSwitchTab={setView} 
+                onLogout={() => signOut(auth)} 
+                toggleHistory={() => setShowHistory(!showHistory)}
+                toggleNotif={() => setShowNotif(!showNotif)}
+                notifCount={notifications.length}
+              />
+              
+              <main className="max-w-7xl mx-auto px-4 py-6">
+                {view === 'planner' ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
+                    <div className="hidden lg:block lg:col-span-3">
+                      <MonthNavigator currentMonth={currentMonth} onSelectMonth={setCurrentMonth} counts={tasks.map(m => m.length)} />
+                    </div>
+                    <div className="lg:col-span-9 space-y-6">
+                      {/* Header */}
+                      <div className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-3xl p-8 shadow-xl shadow-teal-500/20 relative overflow-hidden">
+                        <div className="relative z-10">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h2 className="text-4xl font-bold tracking-tight mb-1">{MONTH_NAMES_TH[currentMonth]}</h2>
+                              <div className="flex items-center gap-2 opacity-90 text-sm font-light"><Rocket size={14} /> Launching: <span className="font-medium">{LAUNCH_MONTHS_TH[currentMonth]}</span></div>
+                            </div>
+                            {!user?.isAnonymous && (
+                              <button 
+                                onClick={() => { setIsSelectMode(!isSelectMode); setSelectedTasks(new Set()); }}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-sm transition ${isSelectMode ? 'bg-white text-teal-600' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                              >
+                                {isSelectMode ? 'Cancel Selection' : 'Select'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Toolbar */}
+                      <div className="flex flex-col sm:flex-row justify-between gap-4">
+                        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                          <button onClick={() => setFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === 'all' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}>All</button>
+                          {CHANNELS.map(c => <button key={c} onClick={() => setFilter(c)} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === c ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200'}`}>{c}</button>)}
+                        </div>
+                        <div className="relative w-full sm:w-64 group">
+                          <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white border border-slate-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none pl-10 shadow-sm" />
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                        {!user?.isAnonymous && <button onClick={() => { setEditingTask(null); setAddModalOpen(true); }} className="px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg transition active:scale-95 flex items-center gap-2"><Plus size={18} /> Add</button>}
+                      </div>
+
+                      {/* Tasks */}
+                      {currentTasks.length === 0 ? (
+                        <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300"><Layers size={48} className="mx-auto mb-3 opacity-50" /><p>No tasks found</p></div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {currentTasks.map(t => (
+                            <TaskCard 
+                              key={t.id} 
+                              task={t} 
+                              isGuest={user?.isAnonymous} 
+                              onClick={(task) => { setActiveTask(task); setDetailModalOpen(true); }} 
+                              onEdit={(task) => { setEditingTask(task); setAddModalOpen(true); }} 
+                              onDelete={() => handleDelete(t)} 
+                              onStatusChange={handleStatusChange} 
+                              isProcessing={actionLoading}
+                              isSelectMode={isSelectMode}
+                              isSelected={selectedTasks.has(t.id)}
+                              onToggleSelect={toggleSelect}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : <Dashboard tasks={tasks} />}
+              </main>
+              
+              {/* Bulk Action Bar */}
+              {isSelectMode && selectedTasks.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-slideUp">
+                  <span className="font-bold text-sm">{selectedTasks.size} selected</span>
+                  <div className="h-4 w-px bg-slate-700"></div>
+                  <button onClick={() => handleBulkAction('done')} className="text-emerald-400 hover:text-emerald-300 font-medium text-sm flex items-center gap-1"><CheckCircle2 size={16}/> Mark Done</button>
+                  <button onClick={() => handleBulkAction('delete')} className="text-red-400 hover:text-red-300 font-medium text-sm flex items-center gap-1"><Trash2 size={16}/> Delete</button>
+                </div>
+              )}
+
+              <ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} loading={actionLoading} />
+              <AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSave={handleSaveTask} editingTask={editingTask} workerRef={workerRef} isSaving={actionLoading} />
+              <TaskDetailModal task={activeTask} onClose={() => setDetailModalOpen(false)} onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} isGuest={user?.isAnonymous} onToggleSubtask={handleToggleSubtask} />
+            </div>
+          );
         }
-    });
-  };
 
-  const handleStatusChange = async (taskId, newStatus) => {
-    // Optimistic UI could be here, but for simplicity relying on Firebase realtime update
-    try {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { status: newStatus });
-    } catch(e) {
-        addToast('อัปเดตสถานะไม่สำเร็จ', 'error');
-    }
-  };
-
-  const currentTasks = useMemo(() => {
-    let list = tasks[currentMonth] || [];
-    if (filter !== 'all') list = list.filter(t => t.channel === filter);
-    if (search) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
-    return list;
-  }, [tasks, currentMonth, filter, search]);
-
-  if (!user && !authLoading) return <LoginOverlay onLogin={handleLogin} onGuest={() => signInAnonymously(auth)} loading={authLoading} error={authError} />;
-
-  return (
-    <div className="min-h-screen bg-slate-50 pb-20 relative">
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-      <Navbar user={user} activeTab={view} onSwitchTab={setView} onLogout={() => signOut(auth)} />
-      
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {view === 'planner' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
-            <div className="hidden lg:block lg:col-span-3">
-              <MonthNavigator currentMonth={currentMonth} onSelectMonth={setCurrentMonth} counts={tasks.map(m => m.length)} />
-            </div>
-            <div className="lg:col-span-9 space-y-6">
-              <div className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-3xl p-8 shadow-xl shadow-teal-500/20 relative overflow-hidden">
-                <div className="relative z-10"><h2 className="text-4xl font-bold tracking-tight mb-1">{MONTH_NAMES_TH[currentMonth]}</h2><div className="flex items-center gap-2 opacity-90 text-sm font-light"><Rocket size={14} /> Launching: <span className="font-medium">{LAUNCH_MONTHS_TH[currentMonth]}</span></div></div>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-between gap-4">
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-                  <button onClick={() => setFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === 'all' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}>All</button>
-                  {CHANNELS.map(c => <button key={c} onClick={() => setFilter(c)} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === c ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200'}`}>{c}</button>)}
-                </div>
-                <div className="relative w-full sm:w-64 group">
-                  <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white border border-slate-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none pl-10 shadow-sm" />
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                </div>
-                {!user?.isAnonymous && <button onClick={() => { setEditingTask(null); setAddModalOpen(true); }} className="px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg transition active:scale-95 flex items-center gap-2"><Plus size={18} /> Add</button>}
-              </div>
-              {currentTasks.length === 0 ? <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300"><Layers size={48} className="mx-auto mb-3 opacity-50" /><p>No tasks found</p></div> : 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentTasks.map(t => <TaskCard key={t.id} task={t} isGuest={user?.isAnonymous} onClick={(task) => { setActiveTask(task); setDetailModalOpen(true); }} onEdit={(task) => { setEditingTask(task); setAddModalOpen(true); }} onDelete={() => handleDelete(t)} onStatusChange={handleStatusChange} isProcessing={actionLoading} />)}</div>}
-            </div>
-          </div>
-        ) : <Dashboard tasks={tasks} />}
-      </main>
-      
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen} 
-        title={confirmModal.title} 
-        message={confirmModal.message} 
-        onConfirm={confirmModal.onConfirm} 
-        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} 
-        loading={actionLoading} 
-      />
-      
-      <AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSave={handleSaveTask} editingTask={editingTask} workerRef={workerRef} isSaving={actionLoading} />
-      <TaskDetailModal task={activeTask} onClose={() => setDetailModalOpen(false)} onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} isGuest={user?.isAnonymous} />
-    </div>
-  );
-}
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
