@@ -1079,10 +1079,10 @@
                 imageGrid += `</div>`;
 
                 // --- CREATOR DISPLAY ---
-                const creatorDisplay = t.createdBy ? 
-                    `<div class="mt-2 pt-2 border-t border-slate-50 text-[10px] text-slate-400 flex justify-end items-center gap-1 font-light">
-                        <i class="fa-solid fa-user-pen"></i> By: <span class="truncate max-w-[120px]">${t.createdBy}</span>
-                    </div>` : '';
+                const creatorDisplayInline = t.createdBy ? 
+                    `<span class="text-[10px] text-slate-400 flex items-center gap-1 font-light ml-auto">
+                        <i class="fa-solid fa-user-pen"></i> <span class="truncate max-w-[80px]">${t.createdBy}</span>
+                    </span>` : '<span class="ml-auto"></span>';
 
                 // --- DESCRIPTION LOGIC (Updated) ---
                 let descDisplay = '';
@@ -1114,15 +1114,21 @@
                     ${displayRemark}
                     ${imageGrid}
 
-                    <div class="flex justify-between items-end border-t border-slate-50 pt-3 mt-3">
-                        ${statusBtn}
-                        <div class="flex flex-col items-end gap-1">
-                            ${kpiDisplay}
-                            ${dateDisplay}
-                            <span class="text-[10px] font-bold ${priorityColor}">Priority: ${t.priority}</span>
-                        </div>
+                    <!-- Meta Row (KPI, Date, Priority, Creator) -->
+                    <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-slate-50">
+                        ${kpiDisplay}
+                        ${dateDisplay}
+                        <span class="text-[10px] font-bold ${priorityColor}">Priority: ${t.priority}</span>
+                        ${creatorDisplayInline}
                     </div>
-                    ${creatorDisplay}
+
+                    <!-- Footer Row (Status & View Button) -->
+                    <div class="flex items-center gap-2 mt-3 pt-2 border-t border-slate-50">
+                        ${statusBtn}
+                        <button onclick="event.stopPropagation(); openTaskDetailModal('${t.id}')" class="ml-auto px-3 py-1.5 rounded-full text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition flex items-center">
+                            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> ดูรายละเอียด
+                        </button>
+                    </div>
                 </div>`;
             }).join('');
         }
