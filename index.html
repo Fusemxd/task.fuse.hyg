@@ -28,6 +28,9 @@
         .status-doing { background-color: #eff6ff; color: #3b82f6; border: 1px solid #dbeafe; }
         .status-draft { background-color: #f5f3ff; color: #8b5cf6; border: 1px solid #ede9fe; }
         .status-done { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
+        /* NEW: Cancelled Status */
+        .status-cancelled { background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; opacity: 0.8; }
+        .card-cancelled { opacity: 0.6; filter: grayscale(100%); }
 
         /* Department Theme Colors (Teal for Graphic Only) */
         .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; }
@@ -200,7 +203,7 @@
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
                     <h4 class="font-bold text-slate-800 text-lg">สถานะปัจจุบัน (Current Status)</h4>
-                    <div class="space-y-4">
+                    <div class="space-y-3">
                         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
                             <span class="text-slate-600"><i class="fa-solid fa-circle text-slate-400 mr-2"></i>รอดำเนินการ</span>
                             <span class="font-bold text-lg text-slate-700" id="stat-todo">0</span>
@@ -216,6 +219,11 @@
                         <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-100">
                             <span class="text-green-700"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>เสร็จสิ้น</span>
                             <span class="font-bold text-lg text-green-700" id="stat-done">0</span>
+                        </div>
+                        <!-- NEW STAT: CANCELLED -->
+                        <div class="flex justify-between items-center p-3 bg-slate-100 rounded-lg border border-slate-200">
+                            <span class="text-slate-500"><i class="fa-solid fa-ban text-slate-400 mr-2"></i>ยกเลิก</span>
+                            <span class="font-bold text-lg text-slate-500" id="stat-cancelled">0</span>
                         </div>
                     </div>
                 </div>
@@ -273,6 +281,12 @@
                 <div>
                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">รายละเอียด (Description)</h4>
                     <p id="detailDesc" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">...</p>
+                </div>
+
+                <!-- NEW: Remark Section in Detail -->
+                <div id="detailRemarkSection" class="hidden bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                    <h4 class="text-xs font-bold text-yellow-600 uppercase mb-2"><i class="fa-solid fa-note-sticky mr-1"></i> หมายเหตุ (Remark)</h4>
+                    <p id="detailRemark" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap"></p>
                 </div>
 
                 <!-- Images -->
@@ -333,6 +347,12 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">รายละเอียด</label>
                     <textarea id="newTaskDesc" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+                </div>
+
+                <!-- NEW: Remark Field -->
+                <div>
+                    <label class="block text-xs font-bold text-yellow-600 uppercase mb-1">หมายเหตุ (Remark)</label>
+                    <input type="text" id="newTaskRemark" class="w-full border border-yellow-200 bg-yellow-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="ระบุหมายเหตุ เช่น ยกเลิกเพราะ...">
                 </div>
 
                 <!-- MULTI-IMAGE UPLOAD SECTION -->
@@ -480,7 +500,9 @@
             'todo': { label: 'รอดำเนินการ', colorClass: 'status-todo', icon: 'fa-circle' },
             'doing': { label: 'กำลังทำ', colorClass: 'status-doing', icon: 'fa-spinner fa-spin' },
             'draft': { label: 'รอรีวิว', colorClass: 'status-draft', icon: 'fa-eye' },
-            'done': { label: 'เสร็จสิ้น', colorClass: 'status-done', icon: 'fa-check-circle' }
+            'done': { label: 'เสร็จสิ้น', colorClass: 'status-done', icon: 'fa-check-circle' },
+            // NEW: Cancelled Status
+            'cancelled': { label: 'ยกเลิก', colorClass: 'status-cancelled', icon: 'fa-ban' }
         };
         
         const KPI_OPTIONS = [
@@ -874,6 +896,15 @@
             document.getElementById('detailDesc').innerText = task.desc || '-';
             document.getElementById('detailChannel').innerText = task.channel;
             
+            // REMARK
+            const remarkDiv = document.getElementById('detailRemarkSection');
+            if(task.remark && task.remark.trim() !== "") {
+                document.getElementById('detailRemark').innerText = task.remark;
+                remarkDiv.classList.remove('hidden');
+            } else {
+                remarkDiv.classList.add('hidden');
+            }
+
             // Status styling
             const sConf = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
             const statusEl = document.getElementById('detailStatus');
@@ -949,7 +980,8 @@
                     t.desc.toLowerCase().includes(searchQuery) ||
                     t.channel.toLowerCase().includes(searchQuery) ||
                     t.priority.toLowerCase().includes(searchQuery) ||
-                    t.kpi.toLowerCase().includes(searchQuery)
+                    t.kpi.toLowerCase().includes(searchQuery) ||
+                    (t.remark && t.remark.toLowerCase().includes(searchQuery))
                 );
             }
 
@@ -970,6 +1002,10 @@
                 const dropdownId = `status-dropdown-${t.id}`;
                 const buttonId = `status-btn-${t.id}`;
                 const priorityColor = t.priority === 'C' ? 'text-red-500' : 'text-slate-400';
+                
+                // Card styling for cancelled
+                const cardClass = t.status === 'cancelled' ? 'card-cancelled' : '';
+                const displayRemark = t.remark ? `<div class="text-[10px] text-yellow-600 bg-yellow-50 px-2 py-1 rounded mt-1 border border-yellow-100"><i class="fa-solid fa-note-sticky mr-1"></i>${t.remark}</div>` : '';
 
                 const actions = isGuest ? '' : `
                     <div class="flex gap-2">
@@ -977,6 +1013,7 @@
                         <button onclick="event.stopPropagation(); promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
                     </div>`; 
                 
+                // Add cancelled to dropdown
                 const statusBtn = isGuest 
                     ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}"><i class="fa-solid ${sConf.icon}"></i> ${sConf.label}</span>`
                     : `<div class="relative">
@@ -988,6 +1025,7 @@
                             <div onclick="updateStatus('${t.id}', 'doing'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">${STATUS_CONFIG.doing.label}</div>
                             <div onclick="updateStatus('${t.id}', 'draft'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">${STATUS_CONFIG.draft.label}</div>
                             <div onclick="updateStatus('${t.id}', 'done'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">${STATUS_CONFIG.done.label}</div>
+                            <div onclick="updateStatus('${t.id}', 'cancelled'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-100 cursor-pointer text-xs text-slate-500"><i class="fa-solid fa-ban mr-1"></i>${STATUS_CONFIG.cancelled.label}</div>
                         </div>
                        </div>`;
 
@@ -1043,14 +1081,14 @@
                     </div>` : '';
 
                 return `
-                <div onclick="openTaskDetailModal('${t.id}')" class="cursor-pointer bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor}">
+                <div onclick="openTaskDetailModal('${t.id}')" class="cursor-pointer bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor} ${cardClass}">
                     <div class="flex justify-between items-start mb-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded">${t.channel}</span>
                         ${actions}
                     </div>
                     <h4 class="font-bold text-slate-800 text-lg leading-tight mb-1">${t.title}</h4>
                     <p class="text-xs text-slate-500 font-light mb-1 line-clamp-2">${t.desc}</p>
-                    
+                    ${displayRemark}
                     ${imageDisplay}
 
                     <div class="flex justify-between items-end border-t border-slate-50 pt-3 mt-3">
@@ -1068,7 +1106,7 @@
         
         // --- DASHBOARD RENDER ---
         window.renderDashboard = function() {
-            let counts = { todo:0, doing:0, draft:0, done:0 };
+            let counts = { todo:0, doing:0, draft:0, done:0, cancelled:0 };
             let monthlyProgress = [];
             
             document.getElementById('dashboardTitle').innerText = `Dashboard: Graphic Team`;
@@ -1078,11 +1116,17 @@
                 const deptTasks = monthTasks.filter(t => t.department === 'Graphic');
                 
                 let mDone = 0;
+                let activeTasksCount = 0; // Total excluding cancelled? Or just simple count.
+                
                 deptTasks.forEach(t => {
                     if(counts[t.status] !== undefined) counts[t.status]++;
                     if(t.status === 'done') mDone++;
                 });
+
+                // Calculate % based on ALL tasks (including cancelled? Usually cancelled doesn't count towards progress)
+                // Let's keep it simple: % is Done / Total. Cancelled tasks are just part of total but not done.
                 let percent = deptTasks.length > 0 ? Math.round((mDone / deptTasks.length) * 100) : 0;
+                
                 monthlyProgress.push({ total: deptTasks.length, done: mDone, percent: percent, tasks: deptTasks });
             });
 
@@ -1090,6 +1134,7 @@
             document.getElementById('stat-doing').innerText = counts.doing;
             document.getElementById('stat-draft').innerText = counts.draft;
             document.getElementById('stat-done').innerText = counts.done;
+            document.getElementById('stat-cancelled').innerText = counts.cancelled;
             
             const hoverBgColor = 'hover:bg-teal-50';
 
@@ -1106,13 +1151,19 @@
 
                 const taskRows = data.tasks.map(t => {
                     const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
+                    // Add Remark to dashboard row
+                    const remarkText = t.remark ? `<span class="ml-2 text-[10px] text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-100"><i class="fa-solid fa-note-sticky mr-1"></i>${t.remark}</span>` : '';
+                    
                     return `
                         <div class="flex justify-between items-center p-2.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition mb-1 last:mb-0">
-                            <div class="flex items-center gap-3">
-                                <span class="text-[10px] font-bold uppercase text-slate-400 w-16">${t.channel.split(' ')[0]}</span>
-                                <span class="text-sm font-medium text-slate-700 truncate max-w-[150px]">${t.title}</span>
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                <span class="text-[10px] font-bold uppercase text-slate-400 w-16 shrink-0">${t.channel.split(' ')[0]}</span>
+                                <div class="flex items-center overflow-hidden">
+                                    <span class="text-sm font-medium text-slate-700 truncate max-w-[200px]">${t.title}</span>
+                                    ${remarkText}
+                                </div>
                             </div>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full ${sConf.colorClass} border flex items-center gap-1 whitespace-nowrap">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full ${sConf.colorClass} border flex items-center gap-1 whitespace-nowrap shrink-0">
                                 <i class="fa-solid ${sConf.icon}"></i> ${sConf.label}
                             </span>
                         </div>
@@ -1192,6 +1243,7 @@
             document.getElementById('modalTitle').innerText = 'เพิ่มงานใหม่ (Graphic)';
             document.getElementById('newTaskTitle').value = '';
             document.getElementById('newTaskDesc').value = '';
+            document.getElementById('newTaskRemark').value = ''; // Reset Remark
             document.getElementById('newTaskDueDate').value = '';
             
             // Reset Images
@@ -1222,6 +1274,7 @@
             document.getElementById('modalTitle').innerText = 'แก้ไขงาน';
             document.getElementById('newTaskTitle').value = task.title;
             document.getElementById('newTaskDesc').value = task.desc;
+            document.getElementById('newTaskRemark').value = task.remark || ''; // Load Remark
             document.getElementById('newTaskDueDate').value = task.dueDate || '';
             
             tempAttachments = [];
@@ -1267,6 +1320,7 @@
             const data = {
                 title,
                 desc: document.getElementById('newTaskDesc').value,
+                remark: document.getElementById('newTaskRemark').value, // Save Remark
                 channel: document.getElementById('newTaskChannel').value,
                 priority: document.getElementById('newTaskPriority').value,
                 monthIndex: parseInt(document.getElementById('newTaskMonth').value),
@@ -1283,7 +1337,7 @@
             } else {
                 data.status = 'todo';
                 data.createdAt = new Date().toISOString();
-                data.createdBy = userEmail; // Add creator email
+                data.createdBy = userEmail; 
                 await addDoc(ref, data);
             }
             closeAddTaskModal();
