@@ -3,1442 +3,724 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Production Planner 2025 (Graphic Team)</title>
+    <title>Insta-Planner 2025</title>
     
     <!-- FAVICON -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #f0f9ff; color: #334155; -webkit-tap-highlight-color: transparent; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        body { font-family: 'Kanit', sans-serif; background-color: #fafafa; color: #262626; -webkit-tap-highlight-color: transparent; padding-bottom: 60px; }
+        
+        /* Hide Scrollbar but allow scrolling */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Status Colors */
-        .status-todo { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-        .status-doing { background-color: #eff6ff; color: #3b82f6; border: 1px solid #dbeafe; }
-        .status-draft { background-color: #f5f3ff; color: #8b5cf6; border: 1px solid #ede9fe; }
-        .status-done { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
-        /* NEW: Cancelled Status */
-        .status-cancelled { background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; opacity: 0.8; }
-        .card-cancelled { opacity: 0.6; filter: grayscale(100%); }
-
-        /* Department Theme Colors (Teal for Graphic Only) */
-        .theme-graphic { --main-color-light: #14b8a6; --main-color-dark: #0f766e; }
+        /* Story Gradient Ring */
+        .story-ring-active { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); padding: 2px; }
+        .story-ring-inactive { background: #dbdbdb; padding: 2px; }
         
-        .nav-btn.active { 
-            background-color: var(--active-bg, #14b8a6); 
-            color: white; 
-            font-weight: 500; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
-            border: 1px solid var(--active-bg, #14b8a6);
+        /* App Container for Desktop View (simulate mobile) */
+        @media (min-width: 768px) {
+            #app-container { max-width: 480px; margin: 0 auto; border-left: 1px solid #dbdbdb; border-right: 1px solid #dbdbdb; min-height: 100vh; background: white; }
+            body { background-color: #fafafa; }
         }
-        .modal-backdrop { background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
-        
-        /* Image Preview Overlay */
-        .img-overlay { background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
+        @media (max-width: 767px) {
+            #app-container { background: white; min-height: 100vh; }
+        }
+
+        /* Carousel Snap */
+        .snap-x-mandatory { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+
+        .like-anim { animation: likeBounce 0.4s; }
+        @keyframes likeBounce { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col pb-20 lg:pb-0 theme-graphic" id="mainBody">
+<body>
 
-    <!-- LOGIN OVERLAY -->
-    <div id="loginOverlay" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center fade-in p-4 overflow-y-auto">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-sm my-auto">
-            <div class="text-center mb-6">
-                <!-- LOGO/ICON -->
-                <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4 p-2">
-                    <img src="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png" 
-                         alt="Production Planner Logo" 
-                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/14b8a6/ffffff?text=Logo';" 
-                         class="w-full h-full object-contain rounded-lg">
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800">Production Planner</h2>
-                <p class="text-slate-500 text-sm">Graphic Team Only</p>
-            </div>
-            
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-                <input type="email" id="loginEmail" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500" placeholder="name@company.com">
-                <input type="password" id="loginPassword" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500" placeholder="••••••••">
-                <div id="loginError" class="text-red-500 text-xs text-center hidden bg-red-50 p-2 rounded border border-red-100"></div>
-                <button type="submit" id="loginBtn" class="w-full py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition font-bold shadow-lg flex justify-center items-center gap-2">
-                    <span>Login (Full Access)</span>
-                </button>
-            </form>
+<div id="app-container" class="relative">
 
-            <div class="relative my-6">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-                <div class="relative flex justify-center text-xs"><span class="px-2 bg-white text-slate-400">หรือ</span></div>
-            </div>
-
-            <button onclick="handleGuestLogin()" id="guestBtn" class="w-full py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition font-medium text-sm flex justify-center items-center gap-2 border border-slate-200">
-                <i class="fa-solid fa-eye"></i> <span>เข้าดูงานเท่านั้น (Guest Mode)</span>
+    <!-- TOP BAR -->
+    <header class="sticky top-0 z-40 bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4">
+        <div class="font-['Inter'] font-bold text-xl tracking-tight flex items-center gap-2">
+            Production<span class="text-xs font-normal border border-black px-1 rounded">Planner</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- Team Switcher as Icon -->
+            <button onclick="toggleDept()" id="deptIconBtn" class="text-2xl transition transform active:scale-90">
+                <i class="fa-solid fa-palette text-black" id="topBarIcon"></i>
             </button>
+            <div class="relative">
+                <i class="fa-regular fa-heart text-2xl"></i>
+                <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN FEED VIEW -->
+    <div id="view-feed" class="fade-in">
+        
+        <!-- STORIES (Months) -->
+        <div class="bg-white border-b border-gray-100 py-3">
+            <div class="flex overflow-x-auto no-scrollbar px-4 gap-4" id="storiesContainer">
+                <!-- Stories injected by JS -->
+            </div>
+        </div>
+
+        <!-- FILTERS (Chips) -->
+        <div class="sticky top-14 z-30 bg-white/95 backdrop-blur-sm py-2 px-4 border-b border-gray-100 flex gap-2 overflow-x-auto no-scrollbar" id="filterContainer">
+            <!-- Filters injected by JS -->
+        </div>
+
+        <!-- POSTS FEED -->
+        <div id="feedList" class="pb-20">
+            <!-- Posts injected by JS -->
         </div>
     </div>
 
-    <!-- Navbar -->
-    <nav class="bg-white shadow-sm sticky top-0 z-30 border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <!-- Team Logo (Fixed to Graphic) -->
-                <div class="flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
-                    <div class="w-6 h-6 rounded flex items-center justify-center text-white text-xs bg-teal-500"><i class="fa-solid fa-palette"></i></div>
-                    <div class="text-left hidden sm:block">
-                        <div class="text-xs font-bold text-teal-700">Graphic Team</div>
-                    </div>
-                </div>
-
-                <div class="h-8 w-px bg-slate-200 mx-1"></div>
-
-                <div class="flex flex-col justify-center">
-                    <h1 class="text-sm md:text-lg font-bold leading-none text-slate-800 tracking-tight">Production <span class="text-slate-400 font-light">Planner</span></h1>
-                    <p class="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <i class="fa-solid fa-user-circle"></i> <span id="userEmailDisplay" class="truncate max-w-[100px]">Guest</span>
-                    </p>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2">
-                <button onclick="switchView('planner')" id="tab-planner" class="nav-btn active px-3 py-1.5 rounded-lg text-xs md:text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-calendar-days"></i> <span class="hidden sm:inline">Planner</span>
-                </button>
-                <button onclick="switchView('dashboard')" id="tab-dashboard" class="nav-btn bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs md:text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie"></i> <span class="hidden sm:inline">Status</span>
-                </button>
-                <button onclick="handleLogout()" id="logoutBtn" class="ml-2 text-slate-300 hover:text-red-500 transition px-2 hidden">
-                    <i class="fa-solid fa-power-off"></i>
-                </button>
-            </div>
+    <!-- SEARCH VIEW (Overlay) -->
+    <div id="view-search" class="hidden fade-in p-4 pb-20">
+        <div class="relative mb-4">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="ค้นหา" class="w-full bg-gray-100 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-300">
         </div>
+        <div class="grid grid-cols-3 gap-1" id="searchGrid">
+            <!-- Grid Results -->
+        </div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="view-dashboard" class="hidden fade-in p-4 pb-20">
+        <h2 class="text-xl font-bold mb-4">Professional Dashboard</h2>
+        <div class="bg-gray-100 p-4 rounded-lg mb-6">
+            <h3 class="text-sm text-gray-500 mb-1">Monthly Completion</h3>
+            <div class="h-48"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="space-y-4" id="dashboardStats">
+            <!-- Stats -->
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-14 flex items-center justify-around z-50 max-w-[480px] mx-auto">
+        <button onclick="switchView('feed')" id="nav-feed" class="text-2xl text-black"><i class="fa-solid fa-house"></i></button>
+        <button onclick="switchView('search')" id="nav-search" class="text-2xl text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button onclick="openAddTaskModal()" class="text-3xl text-black transform hover:scale-110 transition"><i class="fa-regular fa-square-plus"></i></button>
+        <button onclick="switchView('dashboard')" id="nav-dashboard" class="text-2xl text-gray-400"><i class="fa-solid fa-chart-pie"></i></button>
+        <button onclick="handleLogout()" class="w-6 h-6 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
+            <img src="https://ui-avatars.com/api/?name=User&background=random" class="w-full h-full object-cover">
+        </button>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-grow max-w-7xl mx-auto px-2 md:px-4 py-4 w-full relative">
-        <div id="loadingOverlay" class="absolute inset-0 bg-white/90 z-40 hidden flex items-center justify-center backdrop-blur-sm rounded-xl min-h-[50vh]">
-            <div class="text-center p-6">
-                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-slate-300 mb-2"></i>
-                <p class="text-sm text-slate-500">Syncing Data...</p>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" class="fixed inset-0 z-[60] bg-white flex flex-col items-center justify-center fade-in p-8">
+    <div class="mb-8 text-center">
+        <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 rounded-2xl flex items-center justify-center p-1">
+            <div class="bg-white w-full h-full rounded-xl flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png" class="w-16">
             </div>
         </div>
-
-        <!-- VIEW 1: PLANNER -->
-        <div id="view-planner" class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 fade-in">
-            <!-- Mobile Month Nav -->
-            <div class="lg:hidden col-span-1 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden sticky top-0 z-20">
-                <div class="flex overflow-x-auto no-scrollbar p-2 gap-2" id="mobileMonthNavigator"></div>
-            </div>
-
-            <!-- Desktop Sidebar -->
-            <aside class="hidden lg:block lg:col-span-3 space-y-4">
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100 sticky top-20">
-                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                        <span class="text-xs font-bold text-slate-500 uppercase">เดือน</span>
-                        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">งาน</span>
-                    </div>
-                    <div class="space-y-1" id="monthNavigator"></div>
-                </div>
-            </aside>
-
-            <section class="lg:col-span-9 space-y-4 md:space-y-6">
-                <!-- Header Card -->
-                <div id="headerCard" class="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl p-5 md:p-6 shadow-lg flex justify-between items-center relative overflow-hidden transition-colors duration-500">
-                    <div class="relative z-10">
-                        <div class="flex items-baseline gap-2 md:gap-3">
-                            <span class="text-xs md:text-sm opacity-80 font-light">Working In:</span>
-                            <h2 class="text-2xl md:text-3xl font-bold" id="currentMonthTitle">มกราคม</h2>
-                        </div>
-                        <div class="flex items-baseline gap-2 md:gap-3 mt-1">
-                            <span class="text-xs md:text-sm opacity-80 font-light">Launch:</span>
-                            <h2 class="text-lg md:text-xl font-semibold text-white" id="launchMonthTitle">กุมภาพันธ์</h2>
-                        </div>
-                    </div>
-                    <!-- Guest Mode Badge -->
-                    <div id="guestBadge" class="hidden absolute top-4 right-4 bg-black/20 px-3 py-1 rounded-full text-xs font-medium border border-white/20 backdrop-blur-sm">
-                        <i class="fa-solid fa-eye mr-1"></i> View Only
-                    </div>
-                    <i class="fa-solid fa-calendar-check absolute -right-6 -bottom-6 text-8xl md:text-9xl text-white opacity-10"></i>
-                </div>
-
-                <!-- Filters, Search & Add Button -->
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                    <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <!-- Filters -->
-                        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 shrink-0" id="filterContainer">
-                            <button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg bg-slate-700 text-white font-medium transition" onclick="filterTasks('all')">งานทั้งหมด</button>
-                        </div>
-
-                        <!-- Search Box -->
-                        <div class="relative w-full sm:w-64 shrink-0">
-                            <input type="text" id="taskSearchInput" oninput="liveSearchTasks()" placeholder="ค้นหางาน..." 
-                                class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 pl-8">
-                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        </div>
-                    </div>
-                    
-                    <button id="addTaskBtn" onclick="openAddTaskModal()" class="hidden flex justify-center items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg shadow-sm shadow-green-200 transition transform active:scale-95 w-full sm:w-auto shrink-0">
-                        <i class="fa-solid fa-plus"></i> เพิ่มงานใหม่
-                    </button>
-                </div>
-
-                <div id="taskList" class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 pb-20 lg:pb-0"></div>
-            </section>
-        </div>
-
-        <!-- VIEW 2: DASHBOARD -->
-        <div id="view-dashboard" class="hidden fade-in space-y-6 pb-20 lg:pb-0">
-            <h3 id="dashboardTitle" class="text-2xl font-bold text-slate-800">Dashboard: Graphic Team</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 col-span-2">
-                    <h4 class="font-bold text-slate-800 mb-4 text-lg">ภาพรวมงานรายเดือน (Monthly Completion)</h4>
-                    <div class="h-64"><canvas id="monthlyChart"></canvas></div>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
-                    <h4 class="font-bold text-slate-800 text-lg">สถานะปัจจุบัน (Current Status)</h4>
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <span class="text-slate-600"><i class="fa-solid fa-circle text-slate-400 mr-2"></i>รอดำเนินการ</span>
-                            <span class="font-bold text-lg text-slate-700" id="stat-todo">0</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <span class="text-blue-700"><i class="fa-solid fa-spinner text-blue-500 mr-2"></i>กำลังทำ</span>
-                            <span class="font-bold text-lg text-blue-700" id="stat-doing">0</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <span class="text-purple-700"><i class="fa-solid fa-clock text-purple-500 mr-2"></i>รอรีวิว</span>
-                            <span class="font-bold text-lg text-purple-700" id="stat-draft">0</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-100">
-                            <span class="text-green-700"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>เสร็จสิ้น</span>
-                            <span class="font-bold text-lg text-green-700" id="stat-done">0</span>
-                        </div>
-                        <!-- NEW STAT: CANCELLED -->
-                        <div class="flex justify-between items-center p-3 bg-slate-100 rounded-lg border border-slate-200">
-                            <span class="text-slate-500"><i class="fa-solid fa-ban text-slate-400 mr-2"></i>ยกเลิก</span>
-                            <span class="font-bold text-lg text-slate-500" id="stat-cancelled">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <div>
-                        <h4 class="font-bold text-slate-700">รายละเอียดความคืบหน้า (Progress Details)</h4>
-                        <p class="text-xs text-slate-400 mt-1 font-light">แตะที่เดือนเพื่อดูรายละเอียดงานทั้งหมด</p>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left min-w-[600px]">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 w-1/4">เดือน</th>
-                                <th class="px-4 md:px-6 py-3">งานทั้งหมด</th>
-                                <th class="px-4 md:px-6 py-3 w-1/3">ความคืบหน้า</th>
-                                <th class="px-4 md:px-6 py-3">%</th>
-                                <th class="px-4 md:px-6 py-3 text-right">สถานะ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dashboardTableBody" class="divide-y divide-slate-100 font-light"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- TASK DETAIL MODAL (POPUP) -->
-    <div id="taskDetailModal" class="fixed inset-0 z-[65] hidden flex items-center justify-center modal-backdrop fade-in p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
-            <!-- Header -->
-            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
-                <div>
-                    <span id="detailChannel" class="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-200 px-2 py-1 rounded mb-2 inline-block">CHANNEL</span>
-                    <h3 id="detailTitle" class="font-bold text-xl text-slate-800 leading-tight">Task Title</h3>
-                </div>
-                <button onclick="closeTaskDetailModal()" class="text-slate-400 hover:text-slate-600 transition p-1"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            
-            <!-- Scrollable Content -->
-            <div class="p-6 overflow-y-auto space-y-6">
-                <!-- Status & Meta -->
-                <div class="flex flex-wrap gap-4 items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <div id="detailStatus">Status Pill</div>
-                    <div class="flex gap-4 text-sm text-slate-600">
-                        <div id="detailPriority">Priority</div>
-                        <div id="detailDueDate"><i class="fa-regular fa-clock mr-1"></i> Date</div>
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <div>
-                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">รายละเอียด (Description)</h4>
-                    <p id="detailDesc" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">...</p>
-                </div>
-
-                <!-- NEW: Remark Section in Detail -->
-                <div id="detailRemarkSection" class="hidden bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                    <h4 class="text-xs font-bold text-yellow-600 uppercase mb-2"><i class="fa-solid fa-note-sticky mr-1"></i> หมายเหตุ (Remark)</h4>
-                    <p id="detailRemark" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap"></p>
-                </div>
-
-                <!-- Images -->
-                <div id="detailImagesSection" class="hidden">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">รูปภาพแนบ (Attachments)</h4>
-                    <div id="detailImagesGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
-                </div>
-
-                <!-- Footer Meta -->
-                <div class="grid grid-cols-2 gap-4 text-xs text-slate-500 border-t border-slate-100 pt-4">
-                    <div>
-                        <span class="block font-bold text-slate-400 mb-1">KPI Reference</span>
-                        <span id="detailKPI" class="bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100">N/A</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="block font-bold text-slate-400 mb-1">Created By</span>
-                        <span id="detailCreator" class="flex items-center justify-end gap-1"><i class="fa-solid fa-user-pen"></i> Name</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer Actions -->
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
-                <button id="detailEditBtn" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition flex items-center gap-2">
-                    <i class="fa-solid fa-pen"></i> แก้ไข
-                </button>
-                <button onclick="closeTaskDetailModal()" class="px-4 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-sm transition">ปิด</button>
-            </div>
-        </div>
+        <h1 class="font-['Inter'] text-3xl font-bold mb-2">Insta-Planner</h1>
+        <p class="text-gray-500">Graphic & Video Production</p>
     </div>
+    <form onsubmit="handleLogin(event)" class="w-full max-w-xs space-y-3">
+        <input type="email" id="loginEmail" class="w-full border border-gray-300 rounded px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:border-gray-400 focus:outline-none" placeholder="Email">
+        <input type="password" id="loginPassword" class="w-full border border-gray-300 rounded px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:border-gray-400 focus:outline-none" placeholder="Password">
+        <button type="submit" id="loginBtn" class="w-full bg-blue-500 text-white font-semibold py-2 rounded hover:bg-blue-600 transition">Log In</button>
+    </form>
+    <div class="mt-6 flex items-center w-full max-w-xs">
+        <div class="flex-grow border-t border-gray-300"></div>
+        <span class="px-4 text-gray-400 text-xs font-semibold">OR</span>
+        <div class="flex-grow border-t border-gray-300"></div>
+    </div>
+    <button onclick="handleGuestLogin()" id="guestBtn" class="mt-6 text-blue-900 font-semibold text-sm">Log in as Guest</button>
+</div>
 
-    <!-- ADD/EDIT TASK MODAL -->
-    <div id="addTaskModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop fade-in p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
-            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center shrink-0">
-                <h3 id="modalTitle" class="font-bold text-lg text-slate-800">เพิ่มงานใหม่</h3>
-                <button onclick="closeAddTaskModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+<!-- ADD/EDIT TASK MODAL -->
+<div id="addTaskModal" class="fixed inset-0 z-[70] hidden bg-black/50 flex items-end md:items-center justify-center fade-in">
+    <div class="bg-white w-full md:max-w-md md:rounded-xl rounded-t-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="h-12 border-b border-gray-100 flex items-center justify-between px-4 shrink-0">
+            <button onclick="closeAddTaskModal()" class="text-gray-500 font-medium">Cancel</button>
+            <h3 class="font-bold text-lg" id="modalTitle">New Post</h3>
+            <button onclick="handleSaveTask()" class="text-blue-500 font-bold">Share</button>
+        </div>
+        <div class="overflow-y-auto p-4 space-y-4">
+            <input type="hidden" id="editingTaskId">
+            
+            <!-- Image Uploader -->
+            <div class="flex gap-4 overflow-x-auto pb-2" id="modalImagePreview">
+                <label class="shrink-0 w-24 h-24 bg-gray-100 border border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:bg-gray-200 transition">
+                    <i class="fa-solid fa-camera text-2xl mb-1"></i>
+                    <span class="text-[10px]">Add Photo</span>
+                    <input type="file" id="newTaskImageInput" accept="image/*" class="hidden" multiple onchange="handleImageSelect(this)">
+                </label>
             </div>
-            <div class="p-6 space-y-4 overflow-y-auto">
-                <input type="hidden" id="editingTaskId">
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">เดือน (Month)</label>
-                        <select id="newTaskMonth" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">กำหนดส่ง (Due Date)</label>
-                        <input type="date" id="newTaskDueDate" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
-                    </div>
-                </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">ชื่องาน <span class="text-red-500">*</span></label>
-                    <input type="text" id="newTaskTitle" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="ชื่องานหลัก...">
-                    <p id="titleError" class="text-red-500 text-xs hidden mt-1">กรุณากรอกชื่องาน</p>
+            <!-- Content -->
+            <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                    <img src="https://ui-avatars.com/api/?name=Me" class="w-full h-full">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">รายละเอียด</label>
-                    <textarea id="newTaskDesc" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+                <div class="flex-grow space-y-2">
+                    <input type="text" id="newTaskTitle" class="w-full text-sm font-medium focus:outline-none" placeholder="Write a caption... (Title)">
+                    <textarea id="newTaskDesc" rows="3" class="w-full text-sm text-gray-600 focus:outline-none resize-none" placeholder="Description details..."></textarea>
+                    <input type="text" id="newTaskRemark" class="w-full text-xs text-yellow-600 bg-yellow-50 p-2 rounded focus:outline-none" placeholder="Add remark/note...">
                 </div>
+            </div>
 
-                <!-- NEW: Remark Field -->
-                <div>
-                    <label class="block text-xs font-bold text-yellow-600 uppercase mb-1">หมายเหตุ (Remark)</label>
-                    <input type="text" id="newTaskRemark" class="w-full border border-yellow-200 bg-yellow-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="ระบุหมายเหตุ เช่น ยกเลิกเพราะ...">
+            <!-- Meta Fields -->
+            <div class="border-t border-gray-100 pt-2 space-y-3">
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-sm">Month</span>
+                    <select id="newTaskMonth" class="text-sm text-blue-500 font-medium bg-transparent focus:outline-none text-right"></select>
                 </div>
-
-                <!-- MULTI-IMAGE UPLOAD SECTION -->
-                <div class="border-t border-slate-100 pt-4">
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">รูปภาพแนบ (Attachments)</label>
-                    
-                    <div id="attachmentList" class="space-y-3 mb-3">
-                        <!-- Dynamic Image List Goes Here -->
-                    </div>
-
-                    <label class="cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-3 rounded-lg text-sm transition flex justify-center items-center gap-2 border border-dashed border-slate-300 w-full group">
-                        <i class="fa-solid fa-plus-circle text-slate-400 group-hover:text-teal-500 transition"></i> 
-                        <span>เพิ่มรูปภาพ (Add Image)</span>
-                        <input type="file" id="newTaskImageInput" accept="image/*" class="hidden" multiple onchange="handleImageSelect(this)">
-                    </label>
-                    <p class="text-[10px] text-slate-400 mt-2 text-center">* รูปจะถูกย่อขนาดอัตโนมัติ (ใส่ได้หลายรูป)</p>
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-sm">Due Date</span>
+                    <input type="date" id="newTaskDueDate" class="text-sm text-gray-500 focus:outline-none text-right">
                 </div>
-                <!-- END MULTI-IMAGE UPLOAD -->
-
-                <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">ประเภทงาน</label>
-                        <select id="newTaskChannel" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-                            <!-- JS Will Populate based on Team -->
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">ความสำคัญ</label>
-                        <select id="newTaskPriority" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-                            <option value="C">Critical (C - ด่วน/สำคัญ)</option>
-                            <option value="S" selected>Support (S - งานรอง/ทั่วไป)</option>
-                        </select>
-                    </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-sm">Category</span>
+                    <select id="newTaskChannel" class="text-sm text-gray-500 bg-transparent focus:outline-none text-right w-1/2"></select>
                 </div>
-                 <!-- KPI INPUT FIELD -->
-                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">KPI Reference</label>
-                    <select id="newTaskKPI" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-                        <!-- KPI options will be injected by JavaScript -->
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-sm">KPI</span>
+                    <select id="newTaskKPI" class="text-sm text-gray-500 bg-transparent focus:outline-none text-right w-1/2"></select>
+                </div>
+                <div class="flex items-center justify-between py-2">
+                    <span class="text-sm">Priority</span>
+                    <select id="newTaskPriority" class="text-sm text-gray-500 bg-transparent focus:outline-none text-right">
+                        <option value="S">Support (General)</option>
+                        <option value="C">Critical (High)</option>
                     </select>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
-                <button onclick="closeAddTaskModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition">ยกเลิก</button>
-                <button onclick="handleSaveTask()" id="saveTaskBtn" class="px-4 py-2 text-sm font-medium text-white bg-teal-500 hover:bg-teal-600 rounded-lg shadow-sm transition">บันทึก</button>
-            </div>
         </div>
     </div>
-    
-    <!-- DELETE CONFIRMATION MODAL -->
-    <div id="deleteConfirmModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop fade-in p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100">
-            <div class="p-6 text-center">
-                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center mb-4">
-                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
-                </div>
-                <h3 class="font-bold text-lg text-slate-800 mb-2">ยืนยันการลบงาน?</h3>
-                <p class="text-sm text-slate-500">คุณแน่ใจหรือไม่ว่าต้องการลบงานนี้ การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
-                <input type="hidden" id="deleteTaskIdHolder">
-            </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 shrink-0">
-                <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition">ยกเลิก</button>
-                <button onclick="executeDeleteTask()" class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg shadow-sm transition">ยืนยันการลบ</button>
-            </div>
-        </div>
-    </div>
+</div>
 
-    <!-- IMAGE VIEWER MODAL (Lightbox with Nav) -->
-    <div id="imageViewerModal" class="fixed inset-0 z-[70] hidden flex items-center justify-center img-overlay fade-in p-0 md:p-4" onclick="closeImageViewer()">
-        <!-- Close Button -->
-        <button class="absolute top-4 right-4 text-white hover:text-gray-300 z-[80] p-2 bg-black/20 rounded-full backdrop-blur-sm">
-            <i class="fa-solid fa-xmark text-2xl w-8 h-8 flex items-center justify-center"></i>
-        </button>
-        
-        <!-- Navigation Buttons -->
-        <button id="imgPrevBtn" class="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 z-[80] p-4 hidden md:block" onclick="event.stopPropagation(); changeImage(-1)">
-            <i class="fa-solid fa-chevron-left text-4xl drop-shadow-lg"></i>
-        </button>
-        <button id="imgNextBtn" class="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 z-[80] p-4 hidden md:block" onclick="event.stopPropagation(); changeImage(1)">
-            <i class="fa-solid fa-chevron-right text-4xl drop-shadow-lg"></i>
-        </button>
+<!-- Scripts -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        <div class="relative max-w-5xl w-full h-full flex flex-col items-center justify-center p-4">
-            <img id="fullImageView" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all duration-300" onclick="event.stopPropagation()">
-            
-            <!-- Mobile Controls -->
-            <div class="flex md:hidden gap-8 mt-4 text-white">
-                <button onclick="event.stopPropagation(); changeImage(-1)" class="p-2"><i class="fa-solid fa-chevron-left text-2xl"></i></button>
-                <button onclick="event.stopPropagation(); changeImage(1)" class="p-2"><i class="fa-solid fa-chevron-right text-2xl"></i></button>
-            </div>
+    // Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBdmGg7vi9QAD04TFM9suKvjoId_HO7s18",
+        authDomain: "fusetaskhyg.firebaseapp.com",
+        projectId: "fusetaskhyg",
+        storageBucket: "fusetaskhyg.firebasestorage.app",
+        messagingSenderId: "667329598644",
+        appId: "1:667329598644:web:79abb5f6a20739d14f73e1"
+    };
+    const appId = 'graphic-planner-default';
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-            <div class="mt-4 text-center">
-                 <p class="text-white text-lg font-bold drop-shadow-md" id="imageViewerCaption" onclick="event.stopPropagation()"></p>
-                 <p class="text-white/70 text-xs mt-1" id="imageViewerCounter" onclick="event.stopPropagation()"></p>
-            </div>
-        </div>
-    </div>
+    // State
+    let currentUser = null;
+    let isGuest = false;
+    let currentDepartment = 'Graphic';
+    let scheduleData = Array.from({length: 12}, () => []);
+    let currentMonth = new Date().getMonth(); // Start with current month
+    let activeFilter = 'all';
+    let searchQuery = '';
+    let tempAttachments = [];
+    let chartInstance = null;
 
+    // Constants
+    const MONTH_NAMES_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
+    const videoChannels = ["Short Video", "Online Platform", "Offline/Print", "Internal Clip"];
+    const KPI_OPTIONS = [
+        { value: "Financials (1.1)", label: "1.1 (P&L)" },
+        { value: "Profitability (1.2)", label: "1.2 (Profit)" },
+        { value: "Customer Exp (2.1)", label: "2.1 (Exp)" },
+        { value: "Market Presence (2.3)", label: "2.3 (Market)" },
+        { value: "N/A", label: "N/A" }
+    ];
 
-    <!-- Scripts -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // Auth Logic
+    window.handleLogin = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        try { await signInWithEmailAndPassword(auth, email, password); } 
+        catch (e) { alert("Login failed: " + e.message); }
+    };
+    window.handleGuestLogin = async () => {
+        try { await signInAnonymously(auth); } 
+        catch (e) { alert("Guest failed: " + e.message); }
+    };
+    window.handleLogout = async () => await signOut(auth);
 
-        // Firebase Config (Fallback)
-        const firebaseConfig = {
-            apiKey: "AIzaSyBdmGg7vi9QAD04TFM9suKvjoId_HO7s18",
-            authDomain: "fusetaskhyg.firebaseapp.com",
-            projectId: "fusetaskhyg",
-            storageBucket: "fusetaskhyg.firebasestorage.app",
-            messagingSenderId: "667329598644",
-            appId: "1:667329598644:web:79abb5f6a20739d14f73e1"
-        };
-        const appId = 'graphic-planner-default';
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        if (user) {
+            isGuest = user.isAnonymous;
+            document.getElementById('loginOverlay').classList.add('hidden');
+            setupRealtimeListener();
+            toggleDept(currentDepartment, false); // Initialize UI
+        } else {
+            document.getElementById('loginOverlay').classList.remove('hidden');
+        }
+    });
 
-        // State
-        let currentUser = null;
-        let isGuest = false;
-        let currentDepartment = 'Graphic'; // Default and Only Department
-        let scheduleData = Array.from({length: 12}, () => []);
-        let currentMonth = 0;
-        let activeFilter = 'all';
-        let searchQuery = ''; 
-        let chartInstance = null; 
-        let openDropdownId = null; 
-
-        // New State for Multi-Image
-        let tempAttachments = []; 
-        let currentViewingImages = []; 
-        let currentViewingIndex = 0;
-
-        // Constants
-        const MONTH_NAMES_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-        const LAUNCH_MONTHS_TH = ["กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม", "มกราคม (ปีหน้า)"];
-
-        const graphicChannels = ["Online Platform", "Social Media", "Offline/Print", "Internal"];
-        // Video Channels removed from active use but kept in variable just in case
-        const videoChannels = ["Short Video (Tiktok/Reels)", "Online Platform", "Offline/Print", "Internal Clip"];
-        
-        const STATUS_CONFIG = {
-            'todo': { label: 'รอดำเนินการ', colorClass: 'status-todo', icon: 'fa-circle' },
-            'doing': { label: 'กำลังทำ', colorClass: 'status-doing', icon: 'fa-spinner fa-spin' },
-            'draft': { label: 'รอรีวิว', colorClass: 'status-draft', icon: 'fa-eye' },
-            'done': { label: 'เสร็จสิ้น', colorClass: 'status-done', icon: 'fa-check-circle' },
-            // NEW: Cancelled Status
-            'cancelled': { label: 'ยกเลิก', colorClass: 'status-cancelled', icon: 'fa-ban' }
-        };
-        
-        const KPI_OPTIONS = [
-            { value: "Financials (1.1)", label: "1.1 (P&L, Cash Flow)" },
-            { value: "Profitability (1.2)", label: "1.2 (Product Profitability)" },
-            { value: "Reforecasting (1.3)", label: "1.3 (Reforecasting/Budget)" },
-            { value: "Pricing/Cost (1.4)", label: "1.4 (Pricing/Cost Strategy)" },
-            { value: "Margin/Cost (1.5)", label: "1.5 (Margin/Cost Reduction)" },
-            { value: "New Products (1.6)", label: "1.6 (New Product Revenue)" },
-            { value: "Customer Exp (2.1)", label: "2.1 (Customer Experience)" },
-            { value: "Retention/Loyalty (2.2)", label: "2.2 (Retention/Loyalty)" },
-            { value: "Market Presence (2.3)", label: "2.3 (Market Presence)" },
-            { value: "Non-Compliance (5.1)", label: "5.1 (Zero Non-Compliance)" },
-            { value: "SOP Alignment (5.3)", label: "5.3 (SOP Alignment)" },
-            { value: "Cross-BU Synergy (6.1)", label: "6.1 (Cross-BU Synergy)" },
-            { value: "IBC Collaboration (6.5)", label: "6.5 (IBC Collaboration)" },
-            { value: "N/A", label: "N/A" }
-        ];
-
-        // --- Auth Functions ---
-        window.handleLogin = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('loginBtn');
-            const err = document.getElementById('loginError');
-            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
-            try {
-                const email = document.getElementById('loginEmail').value;
-                const password = document.getElementById('loginPassword').value;
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (e) {
-                err.innerText = "Email หรือ Password ผิด";
-                if(e.code === 'auth/operation-not-allowed') err.innerText = "Error: เปิด Email Auth ใน Console ก่อน";
-                err.classList.remove('hidden');
-                btn.disabled = false; btn.innerHTML = 'Login';
-            }
-        };
-
-        window.handleGuestLogin = async () => {
-            const btn = document.getElementById('guestBtn');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังเข้า...';
-            try { await signInAnonymously(auth); } 
-            catch (e) { alert("Guest Login Error: " + e.message); btn.innerHTML = 'Try Guest Again'; }
-        };
-
-        window.handleLogout = async () => await signOut(auth);
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                isGuest = user.isAnonymous;
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('userEmailDisplay').innerText = isGuest ? 'Guest User' : user.email;
-                
-                if(isGuest) {
-                    document.getElementById('addTaskBtn').classList.add('hidden');
-                    document.getElementById('guestBadge').classList.remove('hidden');
-                } else {
-                    document.getElementById('addTaskBtn').classList.remove('hidden');
-                    document.getElementById('guestBadge').classList.add('hidden');
+    // Data Logic
+    function setupRealtimeListener() {
+        const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
+        onSnapshot(query(tasksRef), (snapshot) => {
+            scheduleData = Array.from({length: 12}, () => []);
+            snapshot.forEach((doc) => {
+                const t = { id: doc.id, ...doc.data() };
+                if(!t.department) t.department = 'Graphic';
+                if(t.monthIndex >= 0 && t.monthIndex < 12) {
+                    scheduleData[t.monthIndex].push(t);
                 }
-
-                setupRealtimeListener();
-                switchDepartment('Graphic', false); // Force Graphic
-            } else {
-                document.getElementById('loginOverlay').classList.remove('hidden');
-                document.getElementById('logoutBtn').classList.add('hidden');
-                document.getElementById('loginBtn').innerHTML = 'Login';
-                document.getElementById('loginBtn').disabled = false;
-            }
-        });
-
-        // --- Core Logic ---
-        function setupRealtimeListener() {
-            const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-            onSnapshot(query(tasksRef), (snapshot) => {
-                scheduleData = Array.from({length: 12}, () => []);
-                snapshot.forEach((doc) => {
-                    const t = { id: doc.id, ...doc.data() };
-                    if(!t.department) t.department = 'Graphic';
-                    
-                    if(t.monthIndex >= 0 && t.monthIndex < 12) {
-                        scheduleData[t.monthIndex].push(t);
-                    }
-                });
-                refreshView();
-                document.getElementById('loadingOverlay').classList.add('hidden');
             });
-        }
-
-        window.switchDepartment = function(dept, resetFilter = true) {
-            // Simplified: Always stay on Graphic
-            currentDepartment = 'Graphic';
-            
-            document.getElementById('mainBody').className = `min-h-screen flex flex-col pb-20 lg:pb-0 theme-graphic`;
-            document.documentElement.style.setProperty('--active-bg', '#14b8a6');
-            
-            // Static setup for Graphic
-            document.getElementById('headerCard').className = `bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl p-5 md:p-6 shadow-lg flex justify-between items-center relative overflow-hidden transition-colors duration-500`;
-            document.getElementById('saveTaskBtn').className = `px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm transition bg-teal-500 hover:bg-teal-600`;
-            
-            if(resetFilter) {
-                activeFilter = 'all';
-                searchQuery = '';
-                document.getElementById('taskSearchInput').value = '';
-            }
             refreshView();
-        }
+        });
+    }
 
-        function refreshView() {
-            renderSidebar();
-            renderFilters();
-            renderTasks();
-            if(!document.getElementById('view-dashboard').classList.contains('hidden')) {
-                renderDashboard();
-            }
+    // UI Logic
+    window.toggleDept = function(dept, refresh = true) {
+        if (!dept) {
+            currentDepartment = currentDepartment === 'Graphic' ? 'Video' : 'Graphic';
+        } else {
+            currentDepartment = dept;
         }
-
-        window.loadMonth = function(idx) {
-            currentMonth = idx;
-            document.getElementById('currentMonthTitle').innerText = MONTH_NAMES_TH[idx];
-            document.getElementById('launchMonthTitle').innerText = LAUNCH_MONTHS_TH[idx];
+        
+        const icon = document.getElementById('topBarIcon');
+        const iconBtn = document.getElementById('deptIconBtn');
+        
+        if (currentDepartment === 'Graphic') {
+            icon.className = "fa-solid fa-palette text-black"; // Graphic Icon
+        } else {
+            icon.className = "fa-solid fa-video text-black"; // Video Icon
+        }
+        
+        // Reset filters
+        if(refresh) {
             activeFilter = 'all';
-            searchQuery = '';
-            document.getElementById('taskSearchInput').value = '';
             refreshView();
         }
+    };
 
-        window.renderSidebar = function() {
-            const container = document.getElementById('monthNavigator');
-            const mobileContainer = document.getElementById('mobileMonthNavigator');
-            
-            const activeColor = 'teal';
-            const activeClass = `bg-teal-100 text-teal-600 border-teal-200`;
-            
-            const html = MONTH_NAMES_TH.map((m, i) => {
-                const count = scheduleData[i].filter(t => t.department === 'Graphic').length;
-                const isActive = i === currentMonth;
-                const activeStyle = isActive ? `${activeClass} font-bold` : 'hover:bg-slate-50 text-slate-600';
-                
-                return `<button onclick="loadMonth(${i})" class="nav-btn w-full text-left px-3 py-2 rounded-lg flex justify-between items-center text-sm transition-all ${activeStyle}">
-                    <span>${m}</span>
-                    <span class="text-[10px] bg-white border border-slate-100 px-2 py-0.5 rounded-full text-slate-400 w-6 text-center">${count}</span>
-                </button>`;
-            }).join('');
-            
-            container.innerHTML = html;
-
-            const mobileActiveColor = 'teal'; 
-            mobileContainer.innerHTML = MONTH_NAMES_TH.map((m, i) => {
-                const count = scheduleData[i].filter(t => t.department === 'Graphic').length;
-                const isActive = i === currentMonth;
-                const activeStyle = isActive ? `bg-teal-600 text-white border-teal-600` : 'bg-white text-slate-600 border-slate-200';
-                return `<button onclick="loadMonth(${i})" class="shrink-0 px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 transition-all ${activeStyle}">
-                    <span>${m}</span>
-                    <span class="text-[9px] bg-white/20 px-1.5 rounded-full ${isActive?'text-white':'text-slate-400'}">${count}</span>
-                </button>`;
-            }).join('');
-            
-            mobileContainer.children[currentMonth]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-
-        window.renderFilters = function() {
-            const container = document.getElementById('filterContainer');
-            const channels = graphicChannels; // Only Graphic
-            
-            let html = `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg ${activeFilter==='all' ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 border border-slate-200'} transition" onclick="filterTasks('all')">งานทั้งหมด</button>`;
-            
-            channels.forEach(c => {
-                const isActive = activeFilter === c;
-                const activeClass = `bg-teal-600 text-white`;
-                const filterLabel = c.split(' ')[0];
-
-                html += `<button class="filter-btn whitespace-nowrap px-3 py-1.5 text-xs md:text-sm rounded-lg transition ${isActive ? activeClass : 'bg-white text-slate-600 border border-slate-200'}" onclick="filterTasks('${c}')">${filterLabel}</button>`;
-            });
-            container.innerHTML = html;
-        }
-
-        window.filterTasks = function(f) {
-            activeFilter = f;
-            renderFilters();
-            renderTasks();
-        }
-
-        window.liveSearchTasks = function() {
-            searchQuery = document.getElementById('taskSearchInput').value.toLowerCase().trim();
-            renderTasks();
-        }
+    window.switchView = function(viewName) {
+        // Reset nav icons
+        document.getElementById('nav-feed').className = "text-2xl text-gray-400";
+        document.getElementById('nav-search').className = "text-2xl text-gray-400";
+        document.getElementById('nav-dashboard').className = "text-2xl text-gray-400";
         
-        window.toggleStatusDropdown = function(event, dropdownId) {
-            event.stopPropagation();
-            const dropdown = document.getElementById(dropdownId);
+        // Hide all views
+        document.getElementById('view-feed').classList.add('hidden');
+        document.getElementById('view-search').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.add('hidden');
+
+        // Activate selected
+        document.getElementById(`nav-${viewName}`).className = "text-2xl text-black";
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+        if(viewName === 'feed') refreshView();
+        if(viewName === 'search') {
+            document.getElementById('searchInput').focus();
+            handleSearch(); // Render search grid
+        }
+        if(viewName === 'dashboard') renderDashboard();
+    };
+
+    function refreshView() {
+        renderStories();
+        renderFilters();
+        renderFeed();
+    }
+
+    window.loadMonth = function(idx) {
+        currentMonth = idx;
+        renderStories();
+        renderFeed();
+    }
+
+    function renderStories() {
+        const container = document.getElementById('storiesContainer');
+        container.innerHTML = MONTH_NAMES_TH.map((m, i) => {
+            const isActive = i === currentMonth;
+            const ringClass = isActive ? 'story-ring-active' : 'story-ring-inactive';
+            const count = scheduleData[i].filter(t => t.department === currentDepartment).length;
             
-            if (openDropdownId && openDropdownId !== dropdownId) {
-                document.getElementById(openDropdownId)?.classList.add('hidden');
-            }
-            
-            if (dropdown.classList.contains('hidden')) { 
-                dropdown.classList.remove('hidden'); 
-                openDropdownId = dropdownId; 
-            } else { 
-                dropdown.classList.add('hidden'); 
-                openDropdownId = null; 
-            }
+            return `
+            <div class="flex flex-col items-center gap-1 cursor-pointer shrink-0" onclick="loadMonth(${i})">
+                <div class="${ringClass} rounded-full w-[66px] h-[66px] flex items-center justify-center p-[2px]">
+                    <div class="bg-white rounded-full w-full h-full flex flex-col items-center justify-center border-2 border-white overflow-hidden">
+                        <span class="text-xs font-bold ${isActive ? 'text-black' : 'text-gray-400'}">${m}</span>
+                        <span class="text-[9px] text-gray-400">${count}</span>
+                    </div>
+                </div>
+                <span class="text-xs ${isActive ? 'font-medium' : 'text-gray-500'}">${m}</span>
+            </div>`;
+        }).join('');
+        
+        // Auto scroll to active story
+        if(container.children[currentMonth]) {
+            container.children[currentMonth].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        }
+    }
+
+    function renderFilters() {
+        const container = document.getElementById('filterContainer');
+        const channels = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
+        
+        let html = `<button onclick="setFilter('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-medium transition ${activeFilter === 'all' ? 'bg-black text-white' : 'bg-gray-100 text-black border border-gray-200'}">All</button>`;
+        
+        channels.forEach(c => {
+            const label = c.split(' ')[0]; // Shorten label
+            const isActive = activeFilter === c;
+            html += `<button onclick="setFilter('${c}')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-medium transition ${isActive ? 'bg-black text-white' : 'bg-gray-100 text-black border border-gray-200'}">${label}</button>`;
+        });
+        container.innerHTML = html;
+    }
+
+    window.setFilter = function(filter) {
+        activeFilter = filter;
+        renderFilters();
+        renderFeed();
+    }
+
+    // --- FEED RENDERER (The Core) ---
+    function renderFeed() {
+        const container = document.getElementById('feedList');
+        const allTasks = scheduleData[currentMonth].filter(t => t.department === currentDepartment);
+        let filtered = activeFilter === 'all' ? allTasks : allTasks.filter(t => t.channel === activeFilter);
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="text-center py-20 text-gray-400"><i class="fa-solid fa-camera text-4xl mb-4"></i><p>No Posts Yet</p></div>`;
+            return;
         }
 
-        document.addEventListener('click', function(event) {
-            if (openDropdownId) {
-                const dropdown = document.getElementById(openDropdownId);
-                let isOutside = true;
-                let target = event.target;
-                for(let i=0; i<4; i++) {
-                    if (target === dropdown || target.id === openDropdownId.replace('status-dropdown-', 'status-btn-')) {
-                        isOutside = false;
-                        break;
-                    }
-                    target = target.parentElement;
-                    if (!target) break;
-                }
-                if (isOutside) {
-                    dropdown.classList.add('hidden');
-                    openDropdownId = null;
-                }
-            }
+        container.innerHTML = filtered.map(t => {
+            const isDone = t.status === 'done';
+            const isCritical = t.priority === 'C';
+            const heartIcon = isDone ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart';
+            const bookmarkIcon = isCritical ? 'fa-solid fa-bookmark text-black' : 'fa-regular fa-bookmark';
+            
+            // Image Handling (Carousel)
+            let images = t.attachments || [];
+            if (images.length === 0 && t.imageUrl) images = [{ url: t.imageUrl }];
+            if (images.length === 0) images = [{ url: 'https://placehold.co/600x600/f5f5f5/a3a3a3?text=No+Image', isPlaceholder: true }];
+
+            const slides = images.map(img => 
+                `<div class="snap-center shrink-0 w-full aspect-square relative bg-gray-100">
+                    <img src="${img.url}" class="w-full h-full object-cover">
+                    ${img.caption ? `<div class="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">${img.caption}</div>` : ''}
+                </div>`
+            ).join('');
+
+            const dots = images.length > 1 ? 
+                `<div class="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-md">1/${images.length}</div>` : '';
+
+            // Creator & Remark
+            const creator = t.createdBy ? t.createdBy.split('@')[0] : 'guest';
+            const avatarUrl = `https://ui-avatars.com/api/?name=${creator}&background=random`;
+            const remarkDisplay = t.remark ? `<div class="mt-1 text-sm"><span class="font-bold mr-1">${creator}</span>${t.remark}</div>` : '';
+
+            return `
+            <article class="bg-white border-b border-gray-100 mb-2">
+                <!-- Header -->
+                <div class="flex items-center justify-between px-3 py-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border border-gray-100">
+                            <img src="${avatarUrl}" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <div class="text-sm font-semibold leading-none">${creator}</div>
+                            <div class="text-[10px] text-gray-500 leading-none mt-0.5">${t.channel}</div>
+                        </div>
+                    </div>
+                    <button onclick="openEditTaskModal('${t.id}')" class="text-gray-600"><i class="fa-solid fa-ellipsis"></i></button>
+                </div>
+
+                <!-- Image Carousel -->
+                <div class="relative w-full aspect-square overflow-x-auto flex snap-x-mandatory no-scrollbar bg-gray-50">
+                    ${slides}
+                    ${dots}
+                </div>
+
+                <!-- Actions -->
+                <div class="px-3 py-2">
+                    <div class="flex items-center justify-between text-2xl mb-2">
+                        <div class="flex items-center gap-4">
+                            <button onclick="toggleStatus('${t.id}', '${t.status}')" class="hover:opacity-70 active:scale-90 transition"><i class="${heartIcon}"></i></button>
+                            <button onclick="openEditTaskModal('${t.id}')" class="hover:opacity-70"><i class="fa-regular fa-comment"></i></button>
+                            <button class="hover:opacity-70"><i class="fa-regular fa-paper-plane"></i></button>
+                        </div>
+                        <button onclick="togglePriority('${t.id}', '${t.priority}')" class="hover:opacity-70"><i class="${bookmarkIcon}"></i></button>
+                    </div>
+
+                    <!-- Likes/Status Text -->
+                    <div class="font-semibold text-sm mb-1">${isDone ? 'Completed' : 'In Progress'}</div>
+
+                    <!-- Caption -->
+                    <div class="text-sm mb-1">
+                        <span class="font-bold mr-1">${creator}</span>
+                        ${t.title} <span class="text-blue-900">${t.kpi ? '#' + t.kpi.split(' ')[0] : ''}</span>
+                    </div>
+                    
+                    <!-- Description -->
+                    ${t.desc ? `<div class="text-sm text-gray-500 line-clamp-2 cursor-pointer" onclick="this.classList.toggle('line-clamp-2')">${t.desc}</div>` : ''}
+
+                    <!-- Remarks -->
+                    ${remarkDisplay}
+
+                    <!-- Date -->
+                    <div class="text-[10px] text-gray-400 uppercase mt-1">Due ${t.dueDate || 'No Date'}</div>
+                </div>
+            </article>`;
+        }).join('');
+    }
+
+    // --- ACTIONS ---
+    window.toggleStatus = async (id, currentStatus) => {
+        if(isGuest) return;
+        const newStatus = currentStatus === 'done' ? 'doing' : 'done'; // Toggle Done/Doing
+        // Visual feedback immediately could be added here
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { status: newStatus });
+    };
+
+    window.togglePriority = async (id, currentPriority) => {
+        if(isGuest) return;
+        const newPriority = currentPriority === 'C' ? 'S' : 'C';
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { priority: newPriority });
+    };
+
+    // --- SEARCH GRID RENDERER ---
+    window.handleSearch = function() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const container = document.getElementById('searchGrid');
+        
+        // Flatten all data
+        let allResults = scheduleData.flat().filter(t => t.department === currentDepartment);
+        
+        if (q) {
+            allResults = allResults.filter(t => t.title.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q));
+        }
+
+        container.innerHTML = allResults.map(t => {
+            const img = (t.attachments?.[0]?.url || t.imageUrl) || 'https://placehold.co/300x300/eee/ccc?text=No+Img';
+            return `
+            <div onclick="openEditTaskModal('${t.id}')" class="aspect-square bg-gray-200 cursor-pointer relative group overflow-hidden">
+                <img src="${img}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-black/30 hidden group-hover:flex items-center justify-center text-white gap-3 font-bold">
+                    <span><i class="fa-solid fa-heart"></i> ${t.status==='done'?'1':'0'}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // --- DASHBOARD RENDERER ---
+    window.renderDashboard = function() {
+        let counts = { done: 0, total: 0, critical: 0 };
+        const allDeptTasks = scheduleData.flat().filter(t => t.department === currentDepartment);
+        
+        allDeptTasks.forEach(t => {
+            counts.total++;
+            if(t.status === 'done') counts.done++;
+            if(t.priority === 'C') counts.critical++;
         });
 
-        // --- MULTI-IMAGE HANDLING ---
-        window.handleImageSelect = function(input) {
-            const files = Array.from(input.files);
-            if (!files.length) return;
+        // Stats HTML
+        document.getElementById('dashboardStats').innerHTML = `
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="text-xl font-bold">${counts.total}</div>
+                    <div class="text-xs text-gray-500">Posts</div>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="text-xl font-bold text-green-500">${counts.done}</div>
+                    <div class="text-xs text-gray-500">Completed</div>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="text-xl font-bold text-red-500">${counts.critical}</div>
+                    <div class="text-xs text-gray-500">Critical</div>
+                </div>
+            </div>
+        `;
 
-            const validFiles = files.filter(f => f.size <= 5 * 1024 * 1024);
-            if (validFiles.length < files.length) {
-                alert("บางไฟล์ขนาดใหญ่เกิน 5MB และถูกข้ามไป");
+        // Simple Chart Data (Monthly)
+        const monthlyData = scheduleData.map(m => {
+            const dept = m.filter(t => t.department === currentDepartment);
+            const done = dept.filter(t => t.status === 'done').length;
+            return dept.length ? Math.round((done / dept.length) * 100) : 0;
+        });
+
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: MONTH_NAMES_TH,
+                datasets: [{
+                    label: '% Completion',
+                    data: monthlyData,
+                    backgroundColor: currentDepartment==='Graphic' ? '#14b8a6' : '#0ea5e9',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 100, display: false }, x: { grid: { display: false } } },
+                plugins: { legend: { display: false } }
             }
-            if (validFiles.length === 0) return;
+        });
+    }
 
-            const promises = validFiles.map(file => compressImage(file));
-            
-            Promise.all(promises).then(base64Array => {
-                base64Array.forEach(base64 => {
-                    tempAttachments.push({
-                        url: base64,
-                        caption: ''
-                    });
-                });
-                renderAttachmentList();
-                input.value = ''; 
-            }).catch(err => {
-                console.error(err);
-                alert("เกิดข้อผิดพลาดในการประมวลผลรูปภาพ");
-            });
-        };
+    // --- MODAL FUNCTIONS (Simplified from previous version) ---
+    window.openAddTaskModal = function() {
+        document.getElementById('editingTaskId').value = '';
+        document.getElementById('modalTitle').innerText = 'New Post';
+        document.getElementById('newTaskTitle').value = '';
+        document.getElementById('newTaskDesc').value = '';
+        document.getElementById('newTaskRemark').value = '';
+        document.getElementById('newTaskDueDate').value = '';
+        tempAttachments = [];
+        renderModalImages();
+        
+        // Populate Selects
+        document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
+        const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
+        document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}">${c}</option>`).join('');
+        document.getElementById('newTaskKPI').innerHTML = KPI_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+        
+        document.getElementById('addTaskModal').classList.remove('hidden');
+    }
 
-        function compressImage(file) {
-            return new Promise((resolve, reject) => {
+    window.openEditTaskModal = function(id) {
+        const task = scheduleData.flat().find(t => t.id === id);
+        if(!task) return;
+        
+        document.getElementById('editingTaskId').value = id;
+        document.getElementById('modalTitle').innerText = 'Edit Post';
+        document.getElementById('newTaskTitle').value = task.title;
+        document.getElementById('newTaskDesc').value = task.desc;
+        document.getElementById('newTaskRemark').value = task.remark || '';
+        document.getElementById('newTaskDueDate').value = task.dueDate || '';
+        
+        tempAttachments = [];
+        if(task.attachments) tempAttachments = JSON.parse(JSON.stringify(task.attachments));
+        else if(task.imageUrl) tempAttachments.push({url: task.imageUrl});
+        renderModalImages();
+
+        document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
+        const chans = currentDepartment === 'Graphic' ? graphicChannels : videoChannels;
+        document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}" ${c===task.channel?'selected':''}>${c}</option>`).join('');
+        document.getElementById('newTaskKPI').innerHTML = KPI_OPTIONS.map(o => `<option value="${o.value}" ${o.value===task.kpi?'selected':''}>${o.label}</option>`).join('');
+        document.getElementById('newTaskPriority').value = task.priority;
+
+        document.getElementById('addTaskModal').classList.remove('hidden');
+    }
+
+    window.closeAddTaskModal = () => document.getElementById('addTaskModal').classList.add('hidden');
+
+    // --- Image Handling ---
+    window.handleImageSelect = function(input) {
+        const files = Array.from(input.files);
+        if(!files.length) return;
+        const promises = files.map(file => {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = (event) => {
+                reader.onload = (e) => {
                     const img = new Image();
-                    img.src = event.target.result;
+                    img.src = e.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; 
-                        const scaleSize = MAX_WIDTH / img.width;
-                        
-                        if (scaleSize < 1) {
-                            canvas.width = MAX_WIDTH;
-                            canvas.height = img.height * scaleSize;
-                        } else {
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                        }
-
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
-                    };
-                    img.onerror = (err) => reject(err);
-                };
-                reader.onerror = (err) => reject(err);
+                        const scale = 800 / Math.max(img.width, img.height);
+                        canvas.width = img.width * (scale < 1 ? scale : 1);
+                        canvas.height = img.height * (scale < 1 ? scale : 1);
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve({url: canvas.toDataURL('image/jpeg', 0.7)});
+                    }
+                }
             });
-        }
+        });
+        Promise.all(promises).then(imgs => {
+            tempAttachments = [...tempAttachments, ...imgs];
+            renderModalImages();
+            input.value = '';
+        });
+    }
 
-        window.renderAttachmentList = function() {
-            const container = document.getElementById('attachmentList');
-            container.innerHTML = '';
+    function renderModalImages() {
+        const container = document.getElementById('modalImagePreview');
+        // Keep the upload button
+        const uploadBtn = container.firstElementChild;
+        container.innerHTML = '';
+        container.appendChild(uploadBtn);
+        
+        tempAttachments.forEach((img, idx) => {
+            const div = document.createElement('div');
+            div.className = 'relative shrink-0 w-24 h-24 bg-gray-100 border border-gray-300 rounded overflow-hidden group';
+            div.innerHTML = `
+                <img src="${img.url}" class="w-full h-full object-cover">
+                <button onclick="removeAttachment(${idx})" class="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.insertBefore(div, uploadBtn);
+        });
+    }
+    
+    window.removeAttachment = (idx) => {
+        tempAttachments.splice(idx, 1);
+        renderModalImages();
+    }
 
-            if (tempAttachments.length === 0) {
-                return;
-            }
+    window.handleSaveTask = async () => {
+        const id = document.getElementById('editingTaskId').value;
+        const title = document.getElementById('newTaskTitle').value;
+        if(!title) return alert("Please enter a caption (Title)");
 
-            tempAttachments.forEach((att, index) => {
-                const item = document.createElement('div');
-                item.className = 'flex gap-3 items-start bg-slate-50 p-2 rounded-lg border border-slate-200';
-                item.innerHTML = `
-                    <div class="w-16 h-16 shrink-0 bg-white rounded border border-slate-200 overflow-hidden">
-                        <img src="${att.url}" class="w-full h-full object-cover">
-                    </div>
-                    <div class="flex-grow">
-                        <input type="text" 
-                            placeholder="คำอธิบายภาพ (เช่น Draft 1, Reference)" 
-                            class="w-full text-sm border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500 bg-white"
-                            value="${att.caption}"
-                            onchange="updateAttachmentCaption(${index}, this.value)"
-                        >
-                    </div>
-                    <button onclick="removeAttachment(${index})" class="text-slate-400 hover:text-red-500 p-1">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        window.updateAttachmentCaption = function(index, value) {
-            if(tempAttachments[index]) {
-                tempAttachments[index].caption = value;
-            }
-        }
-
-        window.removeAttachment = function(index) {
-            tempAttachments.splice(index, 1);
-            renderAttachmentList();
-        }
-
-        // --- VIEWER LOGIC ---
-        window.viewImage = function(taskId) {
-            const task = scheduleData.flat().find(t => t.id === taskId);
-            if(!task) return;
-
-            let images = [];
-            if(task.attachments && task.attachments.length > 0) {
-                images = task.attachments;
-            } else if(task.imageUrl) {
-                images = [{ url: task.imageUrl, caption: task.title }];
-            }
-
-            if(images.length > 0) {
-                currentViewingImages = images;
-                currentViewingIndex = 0;
-                updateLightboxContent();
-                document.getElementById('imageViewerModal').classList.remove('hidden');
-            }
+        const data = {
+            title,
+            desc: document.getElementById('newTaskDesc').value,
+            remark: document.getElementById('newTaskRemark').value,
+            monthIndex: parseInt(document.getElementById('newTaskMonth').value),
+            dueDate: document.getElementById('newTaskDueDate').value,
+            channel: document.getElementById('newTaskChannel').value,
+            kpi: document.getElementById('newTaskKPI').value,
+            priority: document.getElementById('newTaskPriority').value,
+            department: currentDepartment,
+            attachments: tempAttachments,
+            imageUrl: tempAttachments[0]?.url || ''
         };
 
-        window.changeImage = function(direction) {
-            if(currentViewingImages.length <= 1) return;
-            
-            currentViewingIndex += direction;
-            if(currentViewingIndex < 0) currentViewingIndex = currentViewingImages.length - 1;
-            if(currentViewingIndex >= currentViewingImages.length) currentViewingIndex = 0;
-            
-            updateLightboxContent();
+        const ref = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
+        if(id) await updateDoc(doc(ref, id), data);
+        else {
+            data.status = 'doing'; // Default to Doing/In Progress
+            data.createdAt = new Date().toISOString();
+            data.createdBy = currentUser?.email || 'Guest';
+            await addDoc(ref, data);
         }
+        closeAddTaskModal();
+    }
 
-        function updateLightboxContent() {
-            const imgData = currentViewingImages[currentViewingIndex];
-            const imgEl = document.getElementById('fullImageView');
-            
-            imgEl.style.opacity = '0.5';
-            setTimeout(() => {
-                imgEl.src = imgData.url;
-                imgEl.style.opacity = '1';
-            }, 150);
-
-            document.getElementById('imageViewerCaption').innerText = imgData.caption || '-';
-            
-            const counter = document.getElementById('imageViewerCounter');
-            if(currentViewingImages.length > 1) {
-                counter.innerText = `${currentViewingIndex + 1} / ${currentViewingImages.length}`;
-                document.getElementById('imgPrevBtn').classList.remove('hidden');
-                document.getElementById('imgNextBtn').classList.remove('hidden');
-            } else {
-                counter.innerText = "";
-                document.getElementById('imgPrevBtn').classList.add('hidden');
-                document.getElementById('imgNextBtn').classList.add('hidden');
-            }
-        }
-
-        window.closeImageViewer = function() {
-            document.getElementById('imageViewerModal').classList.add('hidden');
-        };
-
-        // --- TASK DETAIL MODAL LOGIC ---
-        window.openTaskDetailModal = function(id) {
-            const task = scheduleData.flat().find(t => t.id === id);
-            if(!task) return;
-
-            document.getElementById('detailTitle').innerText = task.title;
-            document.getElementById('detailDesc').innerText = task.desc || '-';
-            document.getElementById('detailChannel').innerText = task.channel;
-            
-            // REMARK
-            const remarkDiv = document.getElementById('detailRemarkSection');
-            if(task.remark && task.remark.trim() !== "") {
-                document.getElementById('detailRemark').innerText = task.remark;
-                remarkDiv.classList.remove('hidden');
-            } else {
-                remarkDiv.classList.add('hidden');
-            }
-
-            // Status styling
-            const sConf = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
-            const statusEl = document.getElementById('detailStatus');
-            statusEl.className = `px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-2 w-fit ${sConf.colorClass}`;
-            statusEl.innerHTML = `<i class="fa-solid ${sConf.icon}"></i> ${sConf.label}`;
-
-            // Priority
-            const pColor = task.priority === 'C' ? 'text-red-500' : 'text-slate-500';
-            document.getElementById('detailPriority').className = `font-bold ${pColor}`;
-            document.getElementById('detailPriority').innerText = `Priority: ${task.priority}`;
-
-            // Date
-            document.getElementById('detailDueDate').innerHTML = task.dueDate ? 
-                `<i class="fa-regular fa-clock mr-1"></i> ${new Date(task.dueDate).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : '-';
-
-            // KPI & Creator
-            document.getElementById('detailKPI').innerText = task.kpi || 'N/A';
-            document.getElementById('detailCreator').innerHTML = `<i class="fa-solid fa-user-pen text-slate-400"></i> ${task.createdBy || 'Guest'}`;
-
-            // Images
-            const imgContainer = document.getElementById('detailImagesSection');
-            const imgGrid = document.getElementById('detailImagesGrid');
-            imgGrid.innerHTML = '';
-            
-            let images = task.attachments || [];
-            if(images.length === 0 && task.imageUrl) images = [{url: task.imageUrl}];
-
-            if(images.length > 0) {
-                imgContainer.classList.remove('hidden');
-                images.forEach((img, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'aspect-video rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 relative';
-                    div.innerHTML = `<img src="${img.url}" class="w-full h-full object-cover">`;
-                    div.onclick = (e) => {
-                        e.stopPropagation();
-                        // Open viewer
-                        viewImage(task.id); 
-                    };
-                    imgGrid.appendChild(div);
-                });
-            } else {
-                imgContainer.classList.add('hidden');
-            }
-
-            // Edit button hook
-            const editBtn = document.getElementById('detailEditBtn');
-            if(isGuest) {
-                editBtn.classList.add('hidden');
-            } else {
-                editBtn.classList.remove('hidden');
-                editBtn.onclick = () => {
-                    closeTaskDetailModal();
-                    openEditTaskModal(task.id);
-                };
-            }
-
-            document.getElementById('taskDetailModal').classList.remove('hidden');
-        }
-
-        window.closeTaskDetailModal = function() {
-            document.getElementById('taskDetailModal').classList.add('hidden');
-        }
-
-        // --- RENDER TASKS ---
-        window.renderTasks = function() {
-            const allTasks = scheduleData[currentMonth].filter(t => t.department === 'Graphic');
-            
-            let filtered = activeFilter === 'all' ? allTasks : allTasks.filter(t => t.channel === activeFilter);
-            
-            if (searchQuery) {
-                filtered = filtered.filter(t => 
-                    t.title.toLowerCase().includes(searchQuery) || 
-                    t.desc.toLowerCase().includes(searchQuery) ||
-                    t.channel.toLowerCase().includes(searchQuery) ||
-                    t.priority.toLowerCase().includes(searchQuery) ||
-                    t.kpi.toLowerCase().includes(searchQuery) ||
-                    (t.remark && t.remark.toLowerCase().includes(searchQuery))
-                );
-            }
-
-            const container = document.getElementById('taskList');
-            
-            if(filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full py-12 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                    <i class="fa-regular fa-folder-open text-2xl mb-2"></i><br>${searchQuery ? 'ไม่พบงานที่ค้นหา' : 'ไม่มีงานในหมวดนี้'}
-                </div>`;
-                return;
-            }
-            
-            const borderColor = 'border-l-teal-500';
-            const hoverColor = 'hover:text-teal-500';
-
-            container.innerHTML = filtered.map(t => {
-                const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
-                const dropdownId = `status-dropdown-${t.id}`;
-                const buttonId = `status-btn-${t.id}`;
-                const priorityColor = t.priority === 'C' ? 'text-red-500' : 'text-slate-400';
-                
-                // Card styling for cancelled
-                const cardClass = t.status === 'cancelled' ? 'card-cancelled' : '';
-                const displayRemark = t.remark ? `<div class="text-[10px] text-yellow-600 bg-yellow-50 px-2 py-1 rounded mt-1 border border-yellow-100"><i class="fa-solid fa-note-sticky mr-1"></i>${t.remark}</div>` : '';
-
-                const actions = isGuest ? '' : `
-                    <div class="flex gap-2">
-                        <button onclick="event.stopPropagation(); openEditTaskModal('${t.id}')" class="text-slate-300 ${hoverColor}"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="event.stopPropagation(); promptDeleteTask('${t.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
-                    </div>`; 
-                
-                // Add cancelled to dropdown
-                const statusBtn = isGuest 
-                    ? `<span class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}"><i class="fa-solid ${sConf.icon}"></i> ${sConf.label}</span>`
-                    : `<div class="relative">
-                        <button id="${buttonId}" onclick="event.stopPropagation(); toggleStatusDropdown(event, '${dropdownId}')" class="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${sConf.colorClass}">
-                            <i class="fa-solid ${sConf.icon}"></i> ${sConf.label} <i class="fa-solid fa-chevron-down opacity-50"></i>
-                        </button>
-                        <div id="${dropdownId}" class="absolute bottom-full left-0 mb-1 w-32 bg-white shadow-xl rounded-lg border border-slate-100 hidden z-10 overflow-hidden">
-                            <div onclick="updateStatus('${t.id}', 'todo'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-50 cursor-pointer text-xs text-slate-600">${STATUS_CONFIG.todo.label}</div>
-                            <div onclick="updateStatus('${t.id}', 'doing'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-blue-50 cursor-pointer text-xs text-blue-600">${STATUS_CONFIG.doing.label}</div>
-                            <div onclick="updateStatus('${t.id}', 'draft'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-purple-50 cursor-pointer text-xs text-purple-600">${STATUS_CONFIG.draft.label}</div>
-                            <div onclick="updateStatus('${t.id}', 'done'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-green-50 cursor-pointer text-xs text-green-600">${STATUS_CONFIG.done.label}</div>
-                            <div onclick="updateStatus('${t.id}', 'cancelled'); toggleStatusDropdown(event, '${dropdownId}')" class="p-2 hover:bg-slate-100 cursor-pointer text-xs text-slate-500"><i class="fa-solid fa-ban mr-1"></i>${STATUS_CONFIG.cancelled.label}</div>
-                        </div>
-                       </div>`;
-
-                const dateDisplay = t.dueDate ? 
-                    `<span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                        <i class="fa-regular fa-clock mr-1"></i>${new Date(t.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}
-                    </span>` : '';
-                
-                const kpiMatch = t.kpi ? t.kpi.match(/\((.*?)\)/) : null;
-                const kpiID = kpiMatch ? kpiMatch[1] : (t.kpi === 'N/A' ? 'N/A' : (t.kpi || 'N/A'));
-                
-                const kpiDisplay = kpiID && kpiID !== 'N/A' ? 
-                    `<span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 whitespace-nowrap font-bold">
-                        KPI: ${kpiID}
-                    </span>` : '';
-
-                // --- IMAGE LOGIC (Updated to Grid) ---
-                let images = [];
-                if (t.attachments && t.attachments.length > 0) {
-                    images = t.attachments;
-                } else if (t.imageUrl) {
-                    images = [{ url: t.imageUrl }];
-                } else {
-                    // Placeholder (Square Mockup)
-                    images = [{ url: 'https://placehold.co/800x800/f1f5f9/94a3b8?text=No+Image', isPlaceholder: true }];
-                }
-
-                const maxShow = 4;
-                const totalImgs = images.length;
-                const visibleImages = images.slice(0, maxShow);
-                
-                let imageGrid = `<div class="mt-3 grid grid-cols-4 gap-2">`;
-                
-                visibleImages.forEach((img, idx) => {
-                    const isLast = idx === maxShow - 1;
-                    const remain = totalImgs - maxShow;
-                    const hasMore = isLast && remain > 0;
-                    const opacity = img.isPlaceholder ? 'opacity-50 grayscale' : '';
-                    const overlayCount = totalImgs - (maxShow - 1); // e.g. 5 total, show 4. last one shows +2 (img 4 & 5)
-                    
-                    imageGrid += `
-                    <div class="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50 cursor-pointer group/imgItem" onclick="event.stopPropagation(); viewImage('${t.id}')">
-                        <img src="${img.url}" class="w-full h-full object-cover transition-transform duration-500 group-hover/imgItem:scale-110 ${opacity}">
-                        ${hasMore ? `
-                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px] transition-colors hover:bg-black/70">
-                            +${overlayCount}
-                        </div>` : ''}
-                    </div>`;
-                });
-                
-                imageGrid += `</div>`;
-
-                // --- CREATOR DISPLAY ---
-                const creatorDisplayInline = t.createdBy ? 
-                    `<span class="text-[10px] text-slate-400 flex items-center gap-1 font-light ml-auto">
-                        <i class="fa-solid fa-user-pen"></i> <span class="truncate max-w-[80px]">${t.createdBy}</span>
-                    </span>` : '<span class="ml-auto"></span>';
-
-                // --- DESCRIPTION LOGIC (Updated) ---
-                let descDisplay = '';
-                const descText = t.desc ? t.desc.trim() : '';
-                
-                if (!descText) {
-                    // Case 1: No description -> Leave blank space (maintain height)
-                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1 min-h-[1.5em]"></p>`; 
-                } else if (descText.length > 60) {
-                    // Case 2: Long description -> Truncate + Read More
-                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1">
-                        ${descText.substring(0, 60)}... <span class="text-teal-600 font-medium">อ่านเพิ่ม</span>
-                    </p>`;
-                } else {
-                    // Case 3: Short description -> Show all
-                    descDisplay = `<p class="text-xs text-slate-500 font-light mb-1">${descText}</p>`;
-                }
-
-                return `
-                <div onclick="openTaskDetailModal('${t.id}')" class="cursor-pointer bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition relative group border-l-4 ${borderColor} ${cardClass}">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded">${t.channel}</span>
-                        ${actions}
-                    </div>
-                    <h4 class="font-bold text-slate-800 text-lg leading-tight mb-1">${t.title}</h4>
-                    
-                    ${descDisplay}
-                    
-                    ${displayRemark}
-                    ${imageGrid}
-
-                    <!-- Meta Row (KPI, Date, Priority, Creator) -->
-                    <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-slate-50">
-                        ${kpiDisplay}
-                        ${dateDisplay}
-                        <span class="text-[10px] font-bold ${priorityColor}">Priority: ${t.priority}</span>
-                        ${creatorDisplayInline}
-                    </div>
-
-                    <!-- Footer Row (Status & View Button) -->
-                    <div class="flex items-center gap-2 mt-3 pt-2 border-t border-slate-50">
-                        ${statusBtn}
-                        <button onclick="event.stopPropagation(); openTaskDetailModal('${t.id}')" class="ml-auto px-3 py-1.5 rounded-full text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition flex items-center">
-                            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> ดูรายละเอียด
-                        </button>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-        
-        // --- DASHBOARD RENDER ---
-        window.renderDashboard = function() {
-            let counts = { todo:0, doing:0, draft:0, done:0, cancelled:0 };
-            let monthlyProgress = [];
-            
-            document.getElementById('dashboardTitle').innerText = `Dashboard: Graphic Team`;
-            const chartColor = '#14b8a6';
-
-            scheduleData.forEach((monthTasks, idx) => {
-                const deptTasks = monthTasks.filter(t => t.department === 'Graphic');
-                
-                let mDone = 0;
-                let activeTasksCount = 0; // Total excluding cancelled? Or just simple count.
-                
-                deptTasks.forEach(t => {
-                    if(counts[t.status] !== undefined) counts[t.status]++;
-                    if(t.status === 'done') mDone++;
-                });
-
-                // Calculate % based on ALL tasks (including cancelled? Usually cancelled doesn't count towards progress)
-                // Let's keep it simple: % is Done / Total. Cancelled tasks are just part of total but not done.
-                let percent = deptTasks.length > 0 ? Math.round((mDone / deptTasks.length) * 100) : 0;
-                
-                monthlyProgress.push({ total: deptTasks.length, done: mDone, percent: percent, tasks: deptTasks });
-            });
-
-            document.getElementById('stat-todo').innerText = counts.todo;
-            document.getElementById('stat-doing').innerText = counts.doing;
-            document.getElementById('stat-draft').innerText = counts.draft;
-            document.getElementById('stat-done').innerText = counts.done;
-            document.getElementById('stat-cancelled').innerText = counts.cancelled;
-            
-            const hoverBgColor = 'hover:bg-teal-50';
-
-            const tbody = document.getElementById('dashboardTableBody');
-            tbody.innerHTML = MONTH_NAMES_TH.map((m, i) => {
-                const data = monthlyProgress[i];
-                const total = data.total;
-                const pct = data.percent;
-                const done = data.done;
-                
-                let barColor = 'bg-slate-200';
-                if(pct > 0) barColor = 'bg-blue-500';
-                if(pct === 100) barColor = 'bg-green-500';
-
-                const taskRows = data.tasks.map(t => {
-                    const sConf = STATUS_CONFIG[t.status] || STATUS_CONFIG['todo'];
-                    // Add Remark to dashboard row
-                    const remarkText = t.remark ? `<span class="ml-2 text-[10px] text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-100"><i class="fa-solid fa-note-sticky mr-1"></i>${t.remark}</span>` : '';
-                    
-                    return `
-                        <div class="flex justify-between items-center p-2.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition mb-1 last:mb-0">
-                            <div class="flex items-center gap-3 overflow-hidden">
-                                <span class="text-[10px] font-bold uppercase text-slate-400 w-16 shrink-0">${t.channel.split(' ')[0]}</span>
-                                <div class="flex items-center overflow-hidden">
-                                    <span class="text-sm font-medium text-slate-700 truncate max-w-[200px]">${t.title}</span>
-                                    ${remarkText}
-                                </div>
-                            </div>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full ${sConf.colorClass} border flex items-center gap-1 whitespace-nowrap shrink-0">
-                                <i class="fa-solid ${sConf.icon}"></i> ${sConf.label}
-                            </span>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <tr class="bg-white border-b border-slate-50 ${hoverBgColor} cursor-pointer transition-colors" onclick="toggleMonthDetails(${i})">
-                        <td class="px-4 md:px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
-                            <i id="chevron-${i}" class="fa-solid fa-chevron-right text-slate-400 text-xs transition-transform duration-200"></i>
-                            ${m}
-                        </td>
-                        <td class="px-4 md:px-6 py-4 text-slate-600">${total}</td>
-                        <td class="px-4 md:px-6 py-4">
-                            <div class="w-full bg-slate-200 rounded-full h-2.5">
-                                <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                            </div>
-                        </td>
-                        <td class="px-4 md:px-6 py-4 font-bold text-slate-700">${pct}%</td>
-                        <td class="px-4 md:px-6 py-4 text-right">
-                            ${pct === 100 ? '<span class="text-green-600 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i> เสร็จสิ้น</span>' : 
-                              pct > 0 ? `<span class="text-blue-600 text-xs font-bold">${done}/${total}</span>` : 
-                              '<span class="text-slate-400 text-xs">-</span>'}
-                        </td>
-                    </tr>
-                    <tr id="details-${i}" class="hidden bg-slate-50/50">
-                        <td colspan="5" class="px-4 md:px-6 py-4">
-                            <div class="pl-2 md:pl-6 border-l-2 border-slate-200 space-y-1">
-                                ${data.tasks.length ? taskRows : '<p class="text-sm text-slate-400 italic pl-2">ไม่มีงานในหมวดนี้สำหรับเดือนนี้</p>'}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            const chartData = monthlyProgress.map(d => d.percent);
-            const ctx = document.getElementById('monthlyChart').getContext('2d');
-            if(chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: MONTH_NAMES_TH,
-                    datasets: [{
-                        label: '% ความคืบหน้า',
-                        data: chartData,
-                        backgroundColor: chartData.map(p => p === 100 ? '#10b981' : chartColor),
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, max: 100 } },
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-        
-        window.toggleMonthDetails = function(idx) {
-            const row = document.getElementById(`details-${idx}`);
-            const chevron = document.getElementById(`chevron-${idx}`);
-            if(row.classList.contains('hidden')) { row.classList.remove('hidden'); chevron.classList.add('rotate-90'); } 
-            else { row.classList.add('hidden'); chevron.classList.remove('rotate-90'); }
-        }
-
-        // --- CRUD ---
-        function populateKpiSelect(selectedValue = 'N/A') {
-            const kpiSelect = document.getElementById('newTaskKPI');
-            kpiSelect.innerHTML = KPI_OPTIONS.map(opt => 
-                `<option value="${opt.value}" ${opt.value === selectedValue ? 'selected' : ''}>${opt.value}</option>`
-            ).join('');
-        }
-
-        window.openAddTaskModal = function() {
-            document.getElementById('editingTaskId').value = '';
-            document.getElementById('modalTitle').innerText = 'เพิ่มงานใหม่ (Graphic)';
-            document.getElementById('newTaskTitle').value = '';
-            document.getElementById('newTaskDesc').value = '';
-            document.getElementById('newTaskRemark').value = ''; // Reset Remark
-            document.getElementById('newTaskDueDate').value = '';
-            
-            // Reset Images
-            tempAttachments = [];
-            renderAttachmentList();
-            
-            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
-            
-            const chans = graphicChannels;
-            document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}">${c}</option>`).join('');
-            
-            populateKpiSelect('N/A');
-
-            const themeColor = 'teal';
-            document.getElementById('newTaskDueDate').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('newTaskTitle').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('newTaskDesc').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('saveTaskBtn').className = `px-4 py-2 text-sm font-medium text-white bg-${themeColor}-500 hover:bg-${themeColor}-600 rounded-lg shadow-sm transition`;
-
-            document.getElementById('addTaskModal').classList.remove('hidden');
-        }
-
-        window.openEditTaskModal = function(id) {
-            const task = scheduleData.flat().find(t => t.id === id); 
-            if(!task) return;
-            
-            document.getElementById('editingTaskId').value = id;
-            document.getElementById('modalTitle').innerText = 'แก้ไขงาน';
-            document.getElementById('newTaskTitle').value = task.title;
-            document.getElementById('newTaskDesc').value = task.desc;
-            document.getElementById('newTaskRemark').value = task.remark || ''; // Load Remark
-            document.getElementById('newTaskDueDate').value = task.dueDate || '';
-            
-            tempAttachments = [];
-            if(task.attachments && task.attachments.length > 0) {
-                tempAttachments = JSON.parse(JSON.stringify(task.attachments));
-            } else if(task.imageUrl) {
-                tempAttachments.push({ url: task.imageUrl, caption: '' });
-            }
-            renderAttachmentList();
-
-            document.getElementById('newTaskMonth').innerHTML = MONTH_NAMES_TH.map((m,i) => `<option value="${i}" ${i===task.monthIndex?'selected':''}>${m}</option>`).join('');
-            
-            const chans = graphicChannels;
-            document.getElementById('newTaskChannel').innerHTML = chans.map(c => `<option value="${c}" ${c===task.channel?'selected':''}>${c}</option>`).join('');
-            
-            populateKpiSelect(task.kpi || 'N/A');
-            document.getElementById('newTaskPriority').value = task.priority;
-
-            const themeColor = 'teal';
-            document.getElementById('newTaskDueDate').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('newTaskTitle').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('newTaskDesc').className = `w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeColor}-500`;
-            document.getElementById('saveTaskBtn').className = `px-4 py-2 text-sm font-medium text-white bg-${themeColor}-500 hover:bg-${themeColor}-600 rounded-lg shadow-sm transition`;
-            
-            document.getElementById('addTaskModal').classList.remove('hidden');
-        }
-
-        window.closeAddTaskModal = () => document.getElementById('addTaskModal').classList.add('hidden');
-
-        window.handleSaveTask = async function() {
-            const id = document.getElementById('editingTaskId').value;
-            const title = document.getElementById('newTaskTitle').value;
-            
-            if(!title) { 
-                document.getElementById('titleError').classList.remove('hidden');
-                return; 
-            }
-            document.getElementById('titleError').classList.add('hidden');
-            
-            const kpi = document.getElementById('newTaskKPI').value; 
-            const userEmail = currentUser && !currentUser.isAnonymous ? currentUser.email : 'Guest';
-
-            const data = {
-                title,
-                desc: document.getElementById('newTaskDesc').value,
-                remark: document.getElementById('newTaskRemark').value, // Save Remark
-                channel: document.getElementById('newTaskChannel').value,
-                priority: document.getElementById('newTaskPriority').value,
-                monthIndex: parseInt(document.getElementById('newTaskMonth').value),
-                dueDate: document.getElementById('newTaskDueDate').value,
-                department: currentDepartment,
-                kpi: kpi,
-                attachments: tempAttachments, 
-                imageUrl: tempAttachments.length > 0 ? tempAttachments[0].url : '' 
-            };
-
-            const ref = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-            if(id) {
-                await updateDoc(doc(ref, id), data);
-            } else {
-                data.status = 'todo';
-                data.createdAt = new Date().toISOString();
-                data.createdBy = userEmail; 
-                await addDoc(ref, data);
-            }
-            closeAddTaskModal();
-        }
-
-        window.updateStatus = async (id, status) => {
-            if(isGuest) return;
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { status });
-        }
-
-        window.promptDeleteTask = (id) => {
-            if(isGuest) return;
-            document.getElementById('deleteTaskIdHolder').value = id;
-            document.getElementById('deleteConfirmModal').classList.remove('hidden');
-        }
-
-        window.closeDeleteConfirmModal = () => {
-            document.getElementById('deleteConfirmModal').classList.add('hidden');
-        }
-
-        window.executeDeleteTask = async () => {
-            const id = document.getElementById('deleteTaskIdHolder').value;
-            if(!id) return;
-            closeDeleteConfirmModal(); 
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
-        }
-
-        window.switchView = (v) => {
-            document.getElementById('view-planner').classList.add('hidden');
-            document.getElementById('view-dashboard').classList.add('hidden');
-            
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if (btn.id.startsWith('tab-')) {
-                    btn.classList.remove('active');
-                    btn.className = btn.className.replace(/bg-teal-\d00|bg-sky-\d00|bg-rose-\d00/, 'bg-white');
-                    btn.classList.add('text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
-                    btn.classList.remove('font-medium', 'text-white', 'shadow-sm', 'shadow-green-200', 'transition', 'transform', 'active:scale-95'); 
-                }
-            });
-
-            const activeTab = document.getElementById('tab-'+v);
-            activeTab.classList.add('active');
-            activeTab.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200', 'hover:bg-slate-50');
-            
-            document.getElementById('view-'+v).classList.remove('hidden');
-            
-            if (v === 'dashboard') {
-                renderDashboard();
-            }
-        }
-        
-        window.onload = function() {
-            const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
-            const envToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            
-            if (typeof __firebase_config !== 'undefined' || typeof __initial_auth_token !== 'undefined') {
-                initializeApp(envConfig);
-                const authInstance = getAuth();
-                if (envToken) {
-                    signInWithCustomToken(authInstance, envToken)
-                        .catch(e => {
-                            console.error("Custom Auth Token Sign-in Failed.", e);
-                            signInAnonymously(authInstance);
-                        });
-                } else {
-                    signInAnonymously(authInstance);
-                }
-            }
-            
-            loadMonth(new Date().getMonth());
-        }
-
-    </script>
+    // Init
+    window.onload = function() {
+        const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') initializeApp(envConfig);
+        signInAnonymously(getAuth()); // Default fallback
+    }
+</script>
 </body>
 </html>
