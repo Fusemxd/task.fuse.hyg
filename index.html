@@ -102,7 +102,9 @@
             appId: "1:667329598644:web:79abb5f6a20739d14f73e1"
         };
         const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : defaultFirebaseConfig;
-        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'graphic-planner-react';
+        
+        // --- FIX: Reverted appId to 'graphic-planner-default' to restore previous data ---
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'graphic-planner-default';
         const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
 
         const app = initializeApp(firebaseConfig);
