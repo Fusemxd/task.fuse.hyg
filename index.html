@@ -136,7 +136,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="text/babel" data-type="module" data-presets="react,env">
         import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
@@ -147,13 +147,14 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
         import * as Lucide from 'lucide-react';
 
+        // เพิ่มการ Import ตัวแปร 'Activity' เพื่อแก้บัค Babel
         const { 
             Plus, Calendar, Clock, CheckCircle2, Circle, Search, Filter, 
             MoreVertical, Edit2, Trash2, X, AlertCircle, TrendingUp, 
             Users, LayoutDashboard, ListTodo, History, CheckCircle, Target,
             ChevronRight, AlertTriangle, Link as LinkIcon, Tag,
             Facebook, Instagram, Youtube, Video, Image as ImageIcon,
-            Smartphone, Globe, Briefcase, FileText, ChevronDown, Lock, Unlock, LogOut, Check
+            Smartphone, Globe, Briefcase, FileText, ChevronDown, Lock, Unlock, LogOut, Check, Activity
         } = Lucide;
 
         // --- Configuration & Helpers ---
@@ -1084,8 +1085,6 @@
             if (isAuthLoading) {
                 return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>;
             }
-
-            const ActivityIcon = Activity;
 
             return (
                 <div className="min-h-screen pb-24 md:pb-8 flex flex-col md:flex-row">
