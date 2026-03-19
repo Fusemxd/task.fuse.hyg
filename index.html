@@ -130,7 +130,7 @@
         // --- Workers ---
         const workerCode = `
           self.onmessage = async function(e) {
-            const { file, maxWidth, quality } = e.data;
+            const { file, maxWidth, quality, correlationId } = e.data;
             try {
               const bitmap = await createImageBitmap(file);
               const scale = maxWidth / Math.max(bitmap.width, bitmap.height);
@@ -142,9 +142,9 @@
               const blob = await offscreen.convertToBlob({ type: 'image/jpeg', quality });
               const reader = new FileReader();
               reader.readAsDataURL(blob);
-              reader.onloadend = () => self.postMessage({ success: true, url: reader.result });
+              reader.onloadend = () => self.postMessage({ success: true, url: reader.result, correlationId });
             } catch (err) {
-              self.postMessage({ success: false, error: err.message });
+              self.postMessage({ success: false, error: err.message, correlationId });
             }
           };
         `;
@@ -160,7 +160,7 @@
 
         // --- Components ---
 
-        // NEW: Business Card Form Component
+        // Business Card Form Component
         const BusinessCardForm = ({ user, workerRef, addToast }) => {
           const [cardData, setCardData] = useState({
             nameTh: 'คุณฟิวส์ วีรพงษ์ เหมะธุลิน',
@@ -183,8 +183,9 @@
               }
               setLoading(false);
             }, (err) => {
-              console.error("Error loading:", err);
+              console.error("Error loading card:", err);
               setLoading(false);
+              addToast('ไม่สามารถโหลดข้อมูลนามบัตรได้', 'error');
             });
             return () => unsubscribe();
           }, [user]);
@@ -206,18 +207,24 @@
           const handleImageUpload = (e, field) => {
             const file = e.target.files[0];
             if (file) {
-              if (file.size > 1024 * 1024) {
-                alert("ไฟล์ภาพใหญ่เกินไป (จำกัด 1MB)");
+              if (file.size > 2 * 1024 * 1024) {
+                addToast("ไฟล์ภาพใหญ่เกินไป (จำกัด 2MB)", 'error');
                 return;
               }
               const worker = workerRef.current;
               if (worker) {
-                worker.postMessage({ file, maxWidth: 400, quality: 0.8 });
-                worker.onmessage = (event) => {
-                  if (event.data.success) {
-                    setCardData(prev => ({ ...prev, [field]: event.data.url }));
+                const correlationId = Math.random().toString(36).substr(2, 9);
+                worker.postMessage({ file, maxWidth: 400, quality: 0.8, correlationId });
+                
+                const handler = (event) => {
+                  if (event.data.correlationId === correlationId) {
+                    if (event.data.success) {
+                      setCardData(prev => ({ ...prev, [field]: event.data.url }));
+                    }
+                    worker.removeEventListener('message', handler);
                   }
                 };
+                worker.addEventListener('message', handler);
               }
             }
           };
@@ -290,35 +297,35 @@
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 flex items-center gap-1.5"><Languages size={10} /> ชื่อ (ภาษาไทย)</label>
-                        <input type="text" value={cardData.nameTh} onChange={(e) => setCardData({...cardData, nameTh: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" placeholder="ระบุชื่อภาษาไทย..." />
+                        <input type="text" value={cardData.nameTh || ''} onChange={(e) => setCardData({...cardData, nameTh: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" placeholder="ระบุชื่อภาษาไทย..." />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 flex items-center gap-1.5"><Languages size={10} /> Name (English)</label>
-                        <input type="text" value={cardData.nameEn} onChange={(e) => setCardData({...cardData, nameEn: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" placeholder="English name..." />
+                        <input type="text" value={cardData.nameEn || ''} onChange={(e) => setCardData({...cardData, nameEn: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" placeholder="English name..." />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 flex items-center gap-1.5"><Briefcase size={10} /> ตำแหน่ง (ภาษาไทย)</label>
-                        <input type="text" value={cardData.positionTh} onChange={(e) => setCardData({...cardData, positionTh: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
+                        <input type="text" value={cardData.positionTh || ''} onChange={(e) => setCardData({...cardData, positionTh: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 flex items-center gap-1.5"><Briefcase size={10} /> Position (English)</label>
-                        <input type="text" value={cardData.positionEn} onChange={(e) => setCardData({...cardData, positionEn: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
+                        <input type="text" value={cardData.positionEn || ''} onChange={(e) => setCardData({...cardData, positionEn: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 flex items-center gap-1.5"><Phone size={10} /> เบอร์โทรศัพท์</label>
-                      <input type="tel" value={cardData.phone} onChange={(e) => setCardData({...cardData, phone: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
+                      <input type="tel" value={cardData.phone || ''} onChange={(e) => setCardData({...cardData, phone: e.target.value})} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-sm" />
                     </div>
                   </div>
 
                   <button 
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-4.5 bg-teal-500 text-white rounded-2xl font-bold shadow-xl shadow-teal-500/20 hover:bg-teal-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
+                    className="w-full py-4 bg-teal-500 text-white rounded-2xl font-bold shadow-xl shadow-teal-500/20 hover:bg-teal-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
                   >
                     {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                     {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลนามบัตร'}
@@ -369,7 +376,10 @@
               data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
               setLogs(data.slice(0, 20));
               setLoading(false);
-            }, () => setLoading(false));
+            }, (err) => {
+              console.error("Audit log error:", err);
+              setLoading(false);
+            });
             return unsub;
           }, [isOpen]);
           if (!isOpen) return null;
@@ -449,7 +459,6 @@
               <div className={`absolute top-7 left-6 w-2 h-2 rounded-full ring-4 ring-slate-50 ${task.priority === 'C' ? 'bg-red-400' : (task.status === 'done' ? 'bg-emerald-400' : 'bg-slate-300')}`}></div>
               <div className="flex justify-between items-start mb-2 pl-6"><div><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 inline-block mb-1.5">{task.channel}</span><h4 className="font-bold text-slate-800 text-lg leading-snug group-hover:text-teal-600 transition-colors">{task.title}</h4></div>{!isGuest && !isSelectMode && (<div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-teal-500 shadow-sm flex items-center justify-center transition"><Edit2 size={12} /></button><button onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="w-7 h-7 rounded-full bg-slate-50 hover:bg-white text-slate-400 hover:text-red-500 shadow-sm flex items-center justify-center transition"><Trash2 size={12} /></button></div>)}</div>
               <div className="pl-6">{task.desc ? <p className="text-xs text-slate-500 font-light mb-1 leading-relaxed line-clamp-2">{task.desc}</p> : <div className="h-2"></div>}{task.remark && <div className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-100 text-[10px] text-amber-700 font-medium"><AlertCircle size={10} className="text-amber-400" /> {task.remark}</div>}{subtaskProgress && (<div className="mt-3"><div className="flex justify-between text-[10px] text-slate-400 mb-1"><span><ListChecks size={10} className="inline mr-1"/> Subtasks</span><span>{subtaskProgress.completed}/{subtaskProgress.total}</span></div><div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div className="bg-teal-400 h-1.5 rounded-full transition-all duration-500" style={{ width: `${subtaskProgress.percent}%` }}></div></div></div>)}{images.length > 0 && (<div className="mt-4 grid grid-cols-4 gap-2">{displayImages.map((img, idx) => (<div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-slate-50 border border-slate-100"><img src={img.url} className="w-full h-full object-cover" loading="lazy" />{idx === 3 && remainCount > 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[2px]">+{remainCount}</div>}</div>))}</div>)}<div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-slate-50 text-[11px] text-slate-400 font-medium">{task.kpi && task.kpi !== 'N/A' && <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">KPI: {task.kpi.split(' ')[0]}</span>}{task.dueDate && <span className="flex items-center gap-1"><Clock size={12} /> {new Date(task.dueDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}</span>}{task.priority === 'C' && <span className="text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-100">Critical</span>}<div className="ml-auto flex items-center gap-1.5 opacity-70"><User size={12} /> {task.createdBy?.split('@')[0] || 'Guest'}</div></div><div className="flex items-center justify-between mt-4">{!isGuest ? (<div className="relative"><button disabled={isProcessing} onClick={(e) => { e.stopPropagation(); setShowStatusMenu(!showStatusMenu); }} className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 transition-all hover:shadow-sm ${statusConfig.color} bg-white/50 backdrop-blur-sm disabled:opacity-50`}>{isProcessing ? <Loader2 size={12} className="animate-spin" /> : <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></div>} {statusConfig.label} <ChevronDown size={12} className="opacity-40" /></button>{showStatusMenu && !isProcessing && (<div className="absolute bottom-full left-0 mb-2 w-36 bg-white shadow-xl rounded-2xl border border-slate-100 z-20 overflow-hidden py-1">{Object.entries(STATUS_CONFIG).map(([key, conf]) => (<div key={key} onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, key); setShowStatusMenu(false); }} className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-xs flex items-center gap-2 text-slate-600 transition-colors"><div className={`w-2 h-2 rounded-full ${conf.dot}`}></div> {conf.label}</div>))}</div>)}</div>) : <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${statusConfig.color}`}>{statusConfig.label}</span>}<button className="text-xs font-bold text-slate-400 hover:text-teal-600 transition flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-teal-50">Details</button></div></div>
-            </div>
           );
         };
 
@@ -477,7 +486,19 @@
             const handleRemoveSubtask = (index) => { setFormData(prev => ({ ...prev, subtasks: prev.subtasks.filter((_, i) => i !== index) })); };
             const handleImageSelect = (e) => {
                 const files = Array.from(e.target.files); if (!files.length) return; const worker = workerRef.current;
-                files.forEach((file) => { if (worker) { worker.postMessage({ file, maxWidth: 800, quality: 0.7 }); worker.onmessage = (event) => { if (event.data.success) { setFormData(prev => ({ ...prev, attachments: [...prev.attachments, { url: event.data.url, caption: '' }] })); } }; } });
+                files.forEach((file) => { 
+                  if (worker) { 
+                    const correlationId = Math.random().toString(36).substr(2, 9);
+                    worker.postMessage({ file, maxWidth: 800, quality: 0.7, correlationId }); 
+                    const handler = (event) => {
+                      if (event.data.correlationId === correlationId) {
+                        if (event.data.success) { setFormData(prev => ({ ...prev, attachments: [...prev.attachments, { url: event.data.url, caption: '' }] })); }
+                        worker.removeEventListener('message', handler);
+                      }
+                    };
+                    worker.addEventListener('message', handler);
+                  } 
+                });
             };
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop fade-in p-4"><div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col"><div className="px-6 py-5 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center shrink-0"><h3 className="font-bold text-xl text-slate-800">{editingTask ? 'Edit Task' : 'Create New Task'}</h3><button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex items-center justify-center"><X size={18} /></button></div><div className="p-6 space-y-5 overflow-y-auto"><div className="grid grid-cols-2 gap-5"><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Month</label><select name="monthIndex" value={formData.monthIndex} onChange={handleChange} className="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-2.5 text-sm outline-none">{MONTH_NAMES_TH.map((m, i) => <option key={i} value={i}>{m}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Due Date</label><div className="relative"><input name="dueDate" type="date" value={formData.dueDate} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none" /><div className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">ค.ศ.</div></div></div></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Task Name</label><input name="title" type="text" value={formData.title} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium outline-none" placeholder="Task name..." /></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Description</label><textarea name="desc" rows="3" value={formData.desc} onChange={handleChange} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none bg-slate-50" placeholder="Details..."></textarea></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Subtasks</label><div className="flex gap-2 mb-2"><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()} className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none" placeholder="Add subtask..." /><button onClick={handleAddSubtask} className="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl px-3 transition"><Plus size={18}/></button></div><div className="space-y-1">{formData.subtasks.map((st, i) => (<div key={i} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-sm group"><span>{st.title}</span><button onClick={() => handleRemoveSubtask(i)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><X size={14}/></button></div>))}</div></div><div><label className="block text-xs font-bold text-amber-500 uppercase mb-1.5 ml-1">Remark</label><input name="remark" type="text" value={formData.remark} onChange={handleChange} className="w-full border border-amber-200 bg-amber-50 rounded-xl px-4 py-2.5 text-sm outline-none text-amber-900" placeholder="Note..." /></div><div className="border-t border-slate-100 pt-5"><label className="block text-xs font-bold text-slate-400 uppercase mb-3">Attachments</label><div className="space-y-3 mb-3">{formData.attachments.map((att, i) => <div key={i} className="flex gap-3 items-center bg-slate-50 p-2 rounded-lg"><div className="w-12 h-12 shrink-0 rounded overflow-hidden"><img src={att.url} className="w-full h-full object-cover" /></div><button onClick={() => setFormData(p => ({...p, attachments: p.attachments.filter((_, idx) => idx !== i)}))} className="ml-auto text-red-400"><Trash2 size={16} /></button></div>)}</div><label className="cursor-pointer bg-slate-50 hover:bg-white text-slate-500 px-4 py-4 rounded-2xl text-sm flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-teal-400 w-full"><ImageIcon size={24} /> <span>Upload Images</span><input type="file" accept="image/*" className="hidden" multiple onChange={handleImageSelect} /></label></div><div className="grid grid-cols-2 gap-5 border-t border-slate-100 pt-5"><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Category</label><select name="channel" value={formData.channel} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Priority</label><select name="priority" value={formData.priority} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none"><option value="C">Critical</option><option value="S">Support</option></select></div></div><div><label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">KPI</label><select name="kpi" value={formData.kpi} onChange={handleChange} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none">{KPI_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}</select></div></div><div className="px-6 py-5 bg-white border-t border-slate-100 flex justify-end gap-3 shrink-0"><button onClick={onClose} disabled={isSaving} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-full transition disabled:opacity-50">Cancel</button><button onClick={() => onSave(formData)} disabled={isSaving} className="px-8 py-2.5 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-full shadow-lg transition flex items-center gap-2 disabled:opacity-70">{isSaving ? <Loader2 size={16} className="animate-spin" /> : 'Save Task'}</button></div></div></div>
@@ -486,8 +507,60 @@
 
         const Dashboard = ({ tasks, onSwitchTab }) => {
             const [expandedMonth, setExpandedMonth] = useState(null);
-            const counts = useMemo(() => { const c = { todo: 0, doing: 0, draft: 0, done: 0, cancelled: 0 }; tasks.forEach(m => m.forEach(t => c[t.status] !== undefined && c[t.status]++)); return c; }, [tasks]);
-            useEffect(() => { const ctx = document.getElementById('monthlyChart')?.getContext('2d'); if (ctx) { const data = tasks.map(m => { const total = m.length; const done = m.filter(t => t.status === 'done').length; return total ? Math.round((done / total) * 100) : 0; }); new Chart(ctx, { type: 'line', data: { labels: MONTH_NAMES_TH, datasets: [{ label: 'Progress %', data: data, borderColor: '#14b8a6', backgroundColor: 'rgba(20, 184, 166, 0.1)', borderWidth: 3, pointBackgroundColor: '#fff', pointBorderColor: '#14b8a6', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } } } }); } }, [tasks]);
+            const chartInstance = useRef(null);
+            
+            const counts = useMemo(() => { 
+                const c = { todo: 0, doing: 0, draft: 0, done: 0, cancelled: 0 }; 
+                tasks.forEach(m => (m || []).forEach(t => { if(c[t.status] !== undefined) c[t.status]++; })); 
+                return c; 
+            }, [tasks]);
+
+            useEffect(() => {
+                if (typeof Chart === 'undefined') return;
+                const ctx = document.getElementById('monthlyChart')?.getContext('2d');
+                if (ctx) {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                    const data = tasks.map(m => {
+                        const total = m.length;
+                        const done = m.filter(t => t.status === 'done').length;
+                        return total ? Math.round((done / total) * 100) : 0;
+                    });
+                    chartInstance.current = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: MONTH_NAMES_TH,
+                            datasets: [{
+                                label: 'Progress %',
+                                data: data,
+                                borderColor: '#14b8a6',
+                                backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#14b8a6',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, max: 100 },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+                return () => {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                };
+            }, [tasks]);
+
             return (
                 <div className="space-y-6 fade-in">
                   <div className="flex justify-between items-center">
@@ -519,8 +592,8 @@
                       <h4 className="font-bold text-slate-800 text-lg mb-4">Status</h4>
                       {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
                         <div key={key} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                          <span className={`text-xs font-bold uppercase ${conf.color.split(' ')[1]}`}>{conf.label}</span>
-                          <div className={`text-xl font-bold ${conf.color.split(' ')[1]}`}>{counts[key] || 0}</div>
+                          <span className={`text-xs font-bold uppercase ${conf.color.split(' ')[1] || 'text-slate-600'}`}>{conf.label}</span>
+                          <div className={`text-xl font-bold ${conf.color.split(' ')[1] || 'text-slate-600'}`}>{counts[key] || 0}</div>
                         </div>
                       ))}
                     </div>
@@ -540,40 +613,328 @@
 
         function App() {
           const [user, setUser] = useState(null); const [authLoading, setAuthLoading] = useState(true); const [authError, setAuthError] = useState(''); const [view, setView] = useState('planner'); const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); const [tasks, setTasks] = useState(Array.from({length: 12}, () => [])); const [filter, setFilter] = useState('all'); const [search, setSearch] = useState(''); const [activeTask, setActiveTask] = useState(null); const [isAddModalOpen, setAddModalOpen] = useState(false); const [isDetailModalOpen, setDetailModalOpen] = useState(false); const [editingTask, setEditingTask] = useState(null); const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null }); const [toasts, setToasts] = useState([]); const [actionLoading, setActionLoading] = useState(false); const [isSelectMode, setIsSelectMode] = useState(false); const [selectedTasks, setSelectedTasks] = useState(new Set()); const [notifications, setNotifications] = useState([]); const [showNotif, setShowNotif] = useState(false); const [showHistory, setShowHistory] = useState(false); const workerRef = useRef(null); const isFirstLoad = useRef(true);
-          const addToast = (message, type = 'success', undoAction = null) => { const id = Date.now(); setToasts(prev => [...prev, { id, message, type, undoAction }]); setTimeout(() => removeToast(id), 5000); };
+          
+          const addToast = (message, type = 'success', undoAction = null) => { 
+            const id = Date.now(); 
+            setToasts(prev => [...prev, { id, message, type, undoAction }]); 
+            setTimeout(() => removeToast(id), 5000); 
+          };
           const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
-          const handleViewTask = (taskId) => { const targetTask = tasks.flat().find(t => t.id === taskId); if (targetTask) { setActiveTask(targetTask); setDetailModalOpen(true); setShowNotif(false); } else addToast('Task not found', 'error'); };
+          
+          const handleViewTask = (taskId) => { 
+            const targetTask = tasks.flat().find(t => t.id === taskId); 
+            if (targetTask) { 
+              setActiveTask(targetTask); 
+              setDetailModalOpen(true); 
+              setShowNotif(false); 
+            } else addToast('ไม่พบงานที่ต้องการ', 'error'); 
+          };
+
           useEffect(() => {
-            const blob = new Blob([workerCode], { type: "application/javascript" }); workerRef.current = new Worker(URL.createObjectURL(blob));
-            const initAuth = async () => { if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken).catch(() => {}); }; initAuth();
+            const blob = new Blob([workerCode], { type: "application/javascript" }); 
+            workerRef.current = new Worker(URL.createObjectURL(blob));
+            
+            const initAuth = async () => { 
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken).catch(async () => {
+                        await signInAnonymously(auth).catch(e => console.error("Auth Error", e));
+                    });
+                } else {
+                    await signInAnonymously(auth).catch(e => console.error("Auth Error", e));
+                }
+            }; 
+            initAuth();
+            
             const unsub = onAuthStateChanged(auth, (u) => {
               setUser(u); setAuthLoading(false);
               if (u) {
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
                 onSnapshot(q, (snap) => {
-                  const newTasks = Array.from({length: 12}, () => []); const allTasksFlat = []; snap.forEach((d) => { const t = { id: d.id, ...d.data() }; if (t.department === 'Graphic' && t.monthIndex >= 0 && t.monthIndex < 12) { newTasks[t.monthIndex].push(t); allTasksFlat.push(t); } }); setTasks(newTasks);
-                  if (!isFirstLoad.current) { snap.docChanges().forEach(change => { if (change.type === 'added') { const newTask = change.doc.data(); if (newTask.department === 'Graphic') { setNotifications(prev => [{ id: Date.now() + Math.random(), title: 'New Task', message: `"${newTask.title}" added by ${newTask.createdBy?.split('@')[0] || 'Guest'}`, type: 'info', time: 'Just now', taskId: change.doc.id }, ...prev]); } } }); }
-                  isFirstLoad.current = false; const today = new Date().toISOString().split('T')[0]; const dueSoon = allTasksFlat.filter(t => t.dueDate === today && t.status !== 'done'); if (dueSoon.length > 0) { setNotifications(prev => { const ids = new Set(prev.map(n => n.id)); const newNotifs = dueSoon.filter(t => !ids.has(t.id)).map(t => ({ id: t.id, title: 'Task Due Today', message: `"${t.title}" is due today!`, type: 'alert', time: 'Just now', taskId: t.id })); return [...newNotifs, ...prev]; }); }
+                  const newTasks = Array.from({length: 12}, () => []); 
+                  const allTasksFlat = []; 
+                  snap.forEach((d) => { 
+                    const t = { id: d.id, ...d.data() }; 
+                    if (t.department === 'Graphic' && t.monthIndex >= 0 && t.monthIndex < 12) { 
+                      newTasks[t.monthIndex].push(t); 
+                      allTasksFlat.push(t); 
+                    } 
+                  }); 
+                  setTasks(newTasks);
+                  
+                  if (!isFirstLoad.current) { 
+                    snap.docChanges().forEach(change => { 
+                      if (change.type === 'added') { 
+                        const newTask = change.doc.data(); 
+                        if (newTask.department === 'Graphic') { 
+                          setNotifications(prev => [{ 
+                            id: Date.now() + Math.random(), 
+                            title: 'New Task', 
+                            message: `"${newTask.title}" added by ${newTask.createdBy?.split('@')[0] || 'Guest'}`, 
+                            type: 'info', 
+                            time: 'Just now', 
+                            taskId: change.doc.id 
+                          }, ...prev]); 
+                        } 
+                      } 
+                    }); 
+                  }
+                  isFirstLoad.current = false; 
+                  const today = new Date().toISOString().split('T')[0]; 
+                  const dueSoon = allTasksFlat.filter(t => t.dueDate === today && t.status !== 'done'); 
+                  if (dueSoon.length > 0) { 
+                    setNotifications(prev => { 
+                      const ids = new Set(prev.map(n => n.taskId)); 
+                      const newNotifs = dueSoon.filter(t => !ids.has(t.id)).map(t => ({ 
+                        id: Date.now() + Math.random(), 
+                        title: 'Task Due Today', 
+                        message: `"${t.title}" is due today!`, 
+                        type: 'alert', 
+                        time: 'Just now', 
+                        taskId: t.id 
+                      })); 
+                      return [...newNotifs, ...prev]; 
+                    }); 
+                  }
+                }, (err) => {
+                  console.error("Firestore Snapshot Error:", err);
+                  addToast("ไม่สามารถซิงค์ข้อมูลงานได้", "error");
                 });
               }
-            }); return () => workerRef.current?.terminate();
+            }); 
+            return () => {
+                if(workerRef.current) workerRef.current.terminate();
+                unsub();
+            };
           }, []);
-          const handleLogin = async (e) => { e.preventDefault(); setAuthLoading(true); try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); } catch (err) { setAuthError("Incorrect email/password"); setAuthLoading(false); } };
-          const handleGuestLogin = async () => { setAuthLoading(true); try { await signInAnonymously(auth); } catch (err) { setAuthError(err.message); setAuthLoading(false); } };
-          const handleSaveTask = async (data) => { setActionLoading(true); try { const taskData = { ...data, department: 'Graphic', createdBy: user.email || 'Guest' }; if (editingTask) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); logAudit('UPDATE', `Updated task "${taskData.title}"`, user); addToast('Task updated successfully'); } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, status: 'todo', createdAt: new Date().toISOString() }); logAudit('CREATE', `Created task "${taskData.title}"`, user); addToast('New task created successfully'); } setAddModalOpen(false); setEditingTask(null); } catch (e) { addToast('Error saving task', 'error'); } finally { setActionLoading(false); } };
-          const handleUndoDelete = async (task) => { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), task); addToast('Task restored', 'success'); logAudit('RESTORE', `Restored task "${task.title}"`, user); } catch (e) { addToast('Restore failed', 'error'); } };
-          const handleDelete = (task) => { setConfirmModal({ isOpen: true, title: 'Delete Task?', message: 'Are you sure? This can be undone immediately.', onConfirm: async () => { setActionLoading(true); try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)); logAudit('DELETE', `Deleted task "${task.title}"`, user); addToast('Task deleted', 'success', () => handleUndoDelete(task)); } catch (e) { addToast('Delete failed', 'error'); } finally { setActionLoading(false); setConfirmModal(prev => ({ ...prev, isOpen: false })); } } }); };
-          const handleStatusChange = async (taskId, newStatus) => { try { let targetTask = tasks.flat().find(t => t.id === taskId); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { status: newStatus }); if (targetTask) logAudit('UPDATE', `Changed status of "${targetTask.title}" to ${newStatus}`, user); } catch(e) { addToast('Status update failed', 'error'); } };
-          const handleToggleSubtask = async (task, index) => { const newSubtasks = [...task.subtasks]; newSubtasks[index].completed = !newSubtasks[index].completed; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { subtasks: newSubtasks }); logAudit('UPDATE', `Toggled subtask in "${task.title}"`, user); };
-          const toggleSelect = (id) => { const newSet = new Set(selectedTasks); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedTasks(newSet); };
-          const handleBulkAction = async (action) => { if (selectedTasks.size === 0) return; setActionLoading(true); try { const promises = Array.from(selectedTasks).map(id => { const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id); if (action === 'delete') return deleteDoc(ref); else return updateDoc(ref, { status: action }); }); await Promise.all(promises); logAudit('BULK', `Performed ${action} on ${selectedTasks.size} tasks`, user); addToast(`Bulk action (${action}) completed`, 'success'); setSelectedTasks(new Set()); setIsSelectMode(false); } catch (e) { addToast('Bulk action failed', 'error'); } finally { setActionLoading(false); } };
-          const currentTasks = useMemo(() => { let list = tasks[currentMonth] || []; if (filter !== 'all') list = list.filter(t => t.channel === filter); if (search) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase())); return list; }, [tasks, currentMonth, filter, search]);
+
+          const handleLogin = async (e) => { 
+            e.preventDefault(); 
+            setAuthLoading(true); 
+            try { 
+              await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); 
+            } catch (err) { 
+              setAuthError("Email หรือ Password ไม่ถูกต้อง"); 
+              setAuthLoading(false); 
+            } 
+          };
+          
+          const handleGuestLogin = async () => { 
+            setAuthLoading(true); 
+            try { await signInAnonymously(auth); } catch (err) { setAuthError(err.message); setAuthLoading(false); } 
+          };
+
+          const handleSaveTask = async (data) => { 
+            setActionLoading(true); 
+            try { 
+              const taskData = { ...data, department: 'Graphic', createdBy: user.email || 'Guest' }; 
+              if (editingTask) { 
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
+                logAudit('UPDATE', `Updated task "${taskData.title}"`, user); 
+                addToast('อัปเดตงานเรียบร้อย'); 
+              } else { 
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, status: 'todo', createdAt: new Date().toISOString() }); 
+                logAudit('CREATE', `Created task "${taskData.title}"`, user); 
+                addToast('สร้างงานใหม่เรียบร้อย'); 
+              } 
+              setAddModalOpen(false); 
+              setEditingTask(null); 
+            } catch (e) { addToast('เกิดข้อผิดพลาดในการบันทึกงาน', 'error'); } 
+            finally { setActionLoading(false); } 
+          };
+
+          const handleUndoDelete = async (task) => { 
+            try { 
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), task); 
+              addToast('กู้คืนงานเรียบร้อย'); 
+              logAudit('RESTORE', `Restored task "${task.title}"`, user); 
+            } catch (e) { addToast('กู้คืนไม่สำเร็จ', 'error'); } 
+          };
+
+          const handleDelete = (task) => { 
+            setConfirmModal({ 
+              isOpen: true, 
+              title: 'ลบงานผลิต?', 
+              message: 'คุณแน่ใจหรือไม่ว่าต้องการลบงานนี้? (สามารถกู้คืนได้ทันที)', 
+              onConfirm: async () => { 
+                setActionLoading(true); 
+                try { 
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)); 
+                  logAudit('DELETE', `Deleted task "${task.title}"`, user); 
+                  addToast('ลบงานเรียบร้อย', 'success', () => handleUndoDelete(task)); 
+                } catch (e) { addToast('ลบไม่สำเร็จ', 'error'); } 
+                finally { setActionLoading(false); setConfirmModal(prev => ({ ...prev, isOpen: false })); } 
+              } 
+            }); 
+          };
+
+          const handleStatusChange = async (taskId, newStatus) => { 
+            try { 
+              let targetTask = tasks.flat().find(t => t.id === taskId); 
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { status: newStatus }); 
+              if (targetTask) logAudit('UPDATE', `Changed status of "${targetTask.title}" to ${newStatus}`, user); 
+            } catch(e) { addToast('เปลี่ยนสถานะไม่สำเร็จ', 'error'); } 
+          };
+
+          const handleToggleSubtask = async (task, index) => { 
+            const newSubtasks = [...task.subtasks]; 
+            newSubtasks[index].completed = !newSubtasks[index].completed; 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { subtasks: newSubtasks }); 
+            logAudit('UPDATE', `Toggled subtask in "${task.title}"`, user); 
+          };
+
+          const toggleSelect = (id) => { 
+            const newSet = new Set(selectedTasks); 
+            if (newSet.has(id)) newSet.delete(id); else newSet.add(id); 
+            setSelectedTasks(newSet); 
+          };
+
+          const handleBulkAction = async (action) => { 
+            if (selectedTasks.size === 0) return; 
+            setActionLoading(true); 
+            try { 
+              const promises = Array.from(selectedTasks).map(id => { 
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id); 
+                if (action === 'delete') return deleteDoc(ref); 
+                else return updateDoc(ref, { status: action }); 
+              }); 
+              await Promise.all(promises); 
+              logAudit('BULK', `Performed ${action} on ${selectedTasks.size} tasks`, user); 
+              addToast(`ดำเนินการ (${action}) เรียบร้อย`, 'success'); 
+              setSelectedTasks(new Set()); 
+              setIsSelectMode(false); 
+            } catch (e) { addToast('ดำเนินการไม่สำเร็จ', 'error'); } 
+            finally { setActionLoading(false); } 
+          };
+
+          const currentTasks = useMemo(() => { 
+            let list = tasks[currentMonth] || []; 
+            if (filter !== 'all') list = list.filter(t => t.channel === filter); 
+            if (search) list = list.filter(t => t.title?.toLowerCase().includes(search.toLowerCase())); 
+            return list; 
+          }, [tasks, currentMonth, filter, search]);
+
           if (!user && !authLoading) return <LoginOverlay onLogin={handleLogin} onGuest={handleGuestLogin} loading={authLoading} error={authError} />;
+          
           return (
-            <div className="min-h-screen bg-slate-50 pb-20 relative"><ToastContainer toasts={toasts} removeToast={removeToast} />{showNotif && <NotificationDropdown notifications={notifications} onClose={() => setShowNotif(false)} onViewTask={handleViewTask} />}<AuditLogDropdown isOpen={showHistory} onClose={() => setShowHistory(false)} /><Navbar user={user} activeTab={view} onSwitchTab={setView} onLogout={() => signOut(auth)} toggleHistory={() => { setShowHistory(!showHistory); if(showNotif) setShowNotif(false); }} toggleNotif={() => { setShowNotif(!showNotif); if(showHistory) setShowHistory(false); }} notifCount={notifications.length} /><main className="max-w-7xl mx-auto px-4 py-6">{view === 'planner' ? (<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in"><div className="hidden lg:block lg:col-span-3"><MonthNavigator currentMonth={currentMonth} onSelectMonth={setCurrentMonth} counts={tasks.map(m => m.length)} /></div><div className="lg:col-span-9 space-y-6"><div className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-3xl p-8 shadow-xl shadow-teal-500/20 relative overflow-hidden"><div className="relative z-10"><div className="flex justify-between items-start"><div><h2 className="text-4xl font-bold tracking-tight mb-1">{MONTH_NAMES_TH[currentMonth]}</h2><div className="flex items-center gap-2 opacity-90 text-sm font-light"><Rocket size={14} /> Launching: <span className="font-medium">{LAUNCH_MONTHS_TH[currentMonth]}</span></div></div>{!user?.isAnonymous && (<button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedTasks(new Set()); }} className={`px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-sm transition ${isSelectMode ? 'bg-white text-teal-600' : 'bg-white/20 text-white hover:bg-white/30'}`}>{isSelectMode ? 'Cancel Selection' : 'Select'}</button>)}</div></div></div><div className="flex flex-col sm:flex-row justify-between gap-4"><div className="flex gap-3 overflow-x-auto no-scrollbar pb-1"><button onClick={() => setFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === 'all' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}>All</button>{CHANNELS.map(c => <button key={c} onClick={() => setFilter(c)} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === c ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200'}`}>{c}</button>)}</div><div className="relative w-full sm:w-64 group"><input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white border border-slate-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none pl-10 shadow-sm" /><Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} /></div>{!user?.isAnonymous && <button onClick={() => { setEditingTask(null); setAddModalOpen(true); }} className="px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg transition active:scale-95 flex items-center gap-2"><Plus size={18} /> Add</button>}</div>{currentTasks.length === 0 ? <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300"><Layers size={48} className="mx-auto mb-3 opacity-50" /><p>No tasks found</p></div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{currentTasks.map(t => (<TaskCard key={t.id} task={t} isGuest={user?.isAnonymous} onClick={(task) => { setActiveTask(task); setDetailModalOpen(true); }} onEdit={(task) => { setEditingTask(task); setAddModalOpen(true); }} onDelete={() => handleDelete(t)} onStatusChange={handleStatusChange} isProcessing={actionLoading} isSelectMode={isSelectMode} isSelected={selectedTasks.has(t.id)} onToggleSelect={toggleSelect} />))}</div>}</div></div>) : view === 'card' ? <BusinessCardForm user={user} workerRef={workerRef} addToast={addToast} /> : <Dashboard tasks={tasks} onSwitchTab={setView} />}</main>{isSelectMode && selectedTasks.size > 0 && (<div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-slideUp"><span className="font-bold text-sm">{selectedTasks.size} selected</span><div className="h-4 w-px bg-slate-700"></div><button onClick={() => handleBulkAction('done')} className="text-emerald-400 hover:text-emerald-300 font-medium text-sm flex items-center gap-1"><CheckCircle2 size={16}/> Mark Done</button><button onClick={() => handleBulkAction('delete')} className="text-red-400 hover:text-red-300 font-medium text-sm flex items-center gap-1"><Trash2 size={16}/> Delete</button></div>)}<ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} loading={actionLoading} /><AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSave={handleSaveTask} editingTask={editingTask} workerRef={workerRef} isSaving={actionLoading} /><TaskDetailModal task={activeTask} onClose={() => { setActiveTask(null); setDetailModalOpen(false); }} onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} isGuest={user?.isAnonymous} onToggleSubtask={handleToggleSubtask} /></div>
+            <div className="min-h-screen bg-slate-50 pb-20 relative">
+                <ToastContainer toasts={toasts} removeToast={removeToast} />
+                {showNotif && <NotificationDropdown notifications={notifications} onClose={() => setShowNotif(false)} onViewTask={handleViewTask} />}
+                <AuditLogDropdown isOpen={showHistory} onClose={() => setShowHistory(false)} />
+                <Navbar 
+                    user={user} 
+                    activeTab={view} 
+                    onSwitchTab={setView} 
+                    onLogout={() => signOut(auth)} 
+                    toggleHistory={() => { setShowHistory(!showHistory); if(showNotif) setShowNotif(false); }} 
+                    toggleNotif={() => { setShowNotif(!showNotif); if(showHistory) setShowHistory(false); }} 
+                    notifCount={notifications.length} 
+                />
+                
+                <main className="max-w-7xl mx-auto px-4 py-6">
+                    {view === 'planner' ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
+                            <div className="hidden lg:block lg:col-span-3">
+                                <MonthNavigator currentMonth={currentMonth} onSelectMonth={setCurrentMonth} counts={tasks.map(m => (m || []).length)} />
+                            </div>
+                            <div className="lg:col-span-9 space-y-6">
+                                <div className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-3xl p-8 shadow-xl shadow-teal-500/20 relative overflow-hidden">
+                                    <div className="relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h2 className="text-4xl font-bold tracking-tight mb-1">{MONTH_NAMES_TH[currentMonth]}</h2>
+                                                <div className="flex items-center gap-2 opacity-90 text-sm font-light"><Rocket size={14} /> Launching: <span className="font-medium">{LAUNCH_MONTHS_TH[currentMonth]}</span></div>
+                                            </div>
+                                            {!user?.isAnonymous && (
+                                                <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedTasks(new Set()); }} className={`px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-sm transition ${isSelectMode ? 'bg-white text-teal-600' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                                                    {isSelectMode ? 'ยกเลิกการเลือก' : 'เลือกหลายรายการ'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row justify-between gap-4">
+                                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                                        <button onClick={() => setFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === 'all' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}>ทั้งหมด</button>
+                                        {CHANNELS.map(c => <button key={c} onClick={() => setFilter(c)} className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap ${filter === c ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200'}`}>{c}</button>)}
+                                    </div>
+                                    <div className="relative w-full sm:w-64 group">
+                                        <input type="text" placeholder="ค้นหางาน..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white border border-slate-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none pl-10 shadow-sm" />
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    </div>
+                                    {!user?.isAnonymous && <button onClick={() => { setEditingTask(null); setAddModalOpen(true); }} className="px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg transition active:scale-95 flex items-center gap-2"><Plus size={18} /> เพิ่มงาน</button>}
+                                </div>
+                                {currentTasks.length === 0 ? (
+                                    <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-300">
+                                        <Layers size={48} className="mx-auto mb-3 opacity-50" />
+                                        <p>ไม่พบรายการงาน</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {currentTasks.map(t => (
+                                            <TaskCard 
+                                                key={t.id} 
+                                                task={t} 
+                                                isGuest={user?.isAnonymous} 
+                                                onClick={(task) => { setActiveTask(task); setDetailModalOpen(true); }} 
+                                                onEdit={(task) => { setEditingTask(task); setAddModalOpen(true); }} 
+                                                onDelete={() => handleDelete(t)} 
+                                                onStatusChange={handleStatusChange} 
+                                                isProcessing={actionLoading} 
+                                                isSelectMode={isSelectMode} 
+                                                isSelected={selectedTasks.has(t.id)} 
+                                                onToggleSelect={toggleSelect} 
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : view === 'card' ? (
+                        <BusinessCardForm user={user} workerRef={workerRef} addToast={addToast} />
+                    ) : (
+                        <Dashboard tasks={tasks} onSwitchTab={setView} />
+                    )}
+                </main>
+                
+                {isSelectMode && selectedTasks.size > 0 && (
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-slideUp">
+                        <span className="font-bold text-sm">เลือกแล้ว {selectedTasks.size} รายการ</span>
+                        <div className="h-4 w-px bg-slate-700"></div>
+                        <button onClick={() => handleBulkAction('done')} className="text-emerald-400 hover:text-emerald-300 font-medium text-sm flex items-center gap-1"><CheckCircle2 size={16}/> เสร็จสิ้น</button>
+                        <button onClick={() => handleBulkAction('delete')} className="text-red-400 hover:text-red-300 font-medium text-sm flex items-center gap-1"><Trash2 size={16}/> ลบออก</button>
+                    </div>
+                )}
+                
+                <ConfirmModal 
+                    isOpen={confirmModal.isOpen} 
+                    title={confirmModal.title} 
+                    message={confirmModal.message} 
+                    onConfirm={confirmModal.onConfirm} 
+                    onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} 
+                    loading={actionLoading} 
+                />
+                
+                <AddTaskModal 
+                    isOpen={isAddModalOpen} 
+                    onClose={() => setAddModalOpen(false)} 
+                    onSave={handleSaveTask} 
+                    editingTask={editingTask} 
+                    workerRef={workerRef} 
+                    isSaving={actionLoading} 
+                />
+                
+                <TaskDetailModal 
+                    task={activeTask} 
+                    onClose={() => { setActiveTask(null); setDetailModalOpen(false); }} 
+                    onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }} 
+                    isGuest={user?.isAnonymous} 
+                    onToggleSubtask={handleToggleSubtask} 
+                />
+            </div>
           );
         }
-        const root = createRoot(document.getElementById('root')); root.render(<App />);
+        const root = createRoot(document.getElementById('root')); 
+        root.render(<App />);
     </script>
 </body>
 </html>
