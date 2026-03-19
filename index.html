@@ -92,7 +92,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        // กำหนด appId ให้คงที่เพื่อให้ข้อมูลไม่หายเมื่อโค้ดอัปเดต
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'production-planner-2026';
 
         // --- Components ---
@@ -127,23 +126,42 @@
 
             useEffect(() => {
                 if (!user) return;
-                // ใช้ Path ตามกฎ Rule 1: /artifacts/{appId}/public/data/{collectionName}
-                const q = collection(db, 'artifacts', appId, 'public', 'data', 'design_requests');
                 
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // เรียงลำดับข้อมูลใน memory (Rule 2)
-                    const sortedData = [...data].sort((a, b) => {
+                // แหล่งข้อมูลที่ 1: ที่จัดเก็บใหม่ตามกฎ Rule 1
+                const newQ = collection(db, 'artifacts', appId, 'public', 'data', 'design_requests');
+                // แหล่งข้อมูลที่ 2: ที่จัดเก็บเดิม (Root Collection)
+                const oldQ = collection(db, 'design_requests');
+
+                let newData = [];
+                let oldData = [];
+
+                const updateState = () => {
+                    const combined = [...newData, ...oldData].sort((a, b) => {
                         const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : Date.now());
                         const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : Date.now());
                         return timeB - timeA;
                     });
-                    setRequests(sortedData);
+                    setRequests(combined);
+                };
+
+                // ฟังข้อมูลจากที่เก็บใหม่
+                const unsubscribeNew = onSnapshot(newQ, (snapshot) => {
+                    newData = snapshot.docs.map(doc => ({ id: doc.id, isNewPath: true, ...doc.data() }));
+                    updateState();
+                }, (err) => console.error("New Path Error:", err));
+
+                // ฟังข้อมูลจากที่เก็บเดิม
+                const unsubscribeOld = onSnapshot(oldQ, (snapshot) => {
+                    oldData = snapshot.docs.map(doc => ({ id: doc.id, isNewPath: false, ...doc.data() }));
+                    updateState();
                 }, (err) => {
-                    console.error("Firestore Error:", err);
-                    setErrorMsg("ไม่สามารถเข้าถึงฐานข้อมูลได้ โปรดตรวจสอบสิทธิ์การใช้งาน");
+                    console.warn("Old Path (Root) may be restricted or empty:", err);
                 });
-                return () => unsubscribe();
+
+                return () => {
+                    unsubscribeNew();
+                    unsubscribeOld();
+                };
             }, [user]);
 
             const handleFileUpload = (e, field) => {
@@ -166,6 +184,7 @@
                 setIsSubmitting(true);
                 setErrorMsg('');
                 try {
+                    // การบันทึกใหม่จะใช้ Path ใหม่เสมอเพื่อความเป็นระเบียบ
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'design_requests'), {
                         ...form,
                         createdBy: user.uid,
@@ -194,10 +213,14 @@
                 document.body.removeChild(textArea);
             };
 
-            const handleDelete = async (id) => {
+            const handleDelete = async (id, isNewPath) => {
                 if(window.confirm("คุณต้องการลบข้อมูลนี้ใช่หรือไม่?")) {
                     try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'design_requests', id));
+                        // เลือกลบจาก Path ที่ข้อมูลนั้นอยู่
+                        const docRef = isNewPath 
+                            ? doc(db, 'artifacts', appId, 'public', 'data', 'design_requests', id)
+                            : doc(db, 'design_requests', id);
+                        await deleteDoc(docRef);
                     } catch (err) {
                         alert("ลบไม่สำเร็จ: " + err.message);
                     }
@@ -290,21 +313,24 @@
                                     <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Palette size={24} className="text-slate-400" />
                                     </div>
-                                    <h3 className="font-bold text-slate-900 mb-2">ยังไม่มีข้อมูลในระบบนี้</h3>
-                                    <p className="text-slate-500">ข้อมูลจะถูกเก็บแยกตาม appId: {appId}</p>
+                                    <h3 className="font-bold text-slate-900 mb-2">ไม่พบข้อมูล</h3>
+                                    <p className="text-slate-500">กำลังดึงข้อมูลจากทั้งที่เก็บเดิมและที่เก็บใหม่...</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-6">
                                     {requests.map(req => (
-                                        <div key={req.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                                        <div key={req.id} className={`bg-white rounded-2xl border ${req.isNewPath ? 'border-slate-200' : 'border-amber-200 bg-amber-50/20'} shadow-sm overflow-hidden flex flex-col md:flex-row transition-all`}>
                                             <div className="p-6 bg-slate-50 border-r border-slate-100 flex flex-col items-center gap-4 w-full md:w-64">
                                                 <img src={req.imgProfile || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover" alt="p" />
                                                 <img src={req.imgQR || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-lg border-4 border-white shadow-sm object-contain" alt="q" />
                                             </div>
                                             <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div className="col-span-2 flex justify-between">
-                                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full uppercase">Request Entry</span>
-                                                    <button onClick={() => handleDelete(req.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                <div className="col-span-2 flex justify-between items-center">
+                                                    <div className="flex gap-2">
+                                                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full uppercase">Entry</span>
+                                                        {!req.isNewPath && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full uppercase">Legacy Data</span>}
+                                                    </div>
+                                                    <button onClick={() => handleDelete(req.id, req.isNewPath)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                                                 </div>
                                                 {[
                                                     { label: 'Name (TH)', value: req.nameTH },
