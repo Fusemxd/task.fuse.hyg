@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Production Planner 2026 (Graphic Team)</title>
+    <title>Production Planner 2026</title>
     
     <!-- FAVICON -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
@@ -28,202 +28,198 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Anuphan:wght@300;400;500;600;700&display=swap');
-        
         body { font-family: 'Plus Jakarta Sans', 'Anuphan', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
-        .dark-glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .animate-slideUp { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slideUp { animation: slideUp 0.3s ease-out; }
     </style>
 </head>
 <body class="bg-[#f8fafc] text-slate-900 min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
+        import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, Timestamp } from 'firebase/firestore';
         import { 
-            LayoutDashboard, ListTodo, Plus, Search, Filter, Calendar, 
-            Settings, UserCircle, LogOut, CheckCircle2, Clock, 
-            AlertCircle, ChevronRight, X, Image as ImageIcon,
-            Save, Trash2, Camera, QrCode, Phone, Languages, User
+            LayoutDashboard, ListTodo, Plus, UserCircle, X, 
+            Save, Trash2, Camera, QrCode, Phone, Languages, User,
+            Copy, Check, FileText
         } from 'lucide-react';
 
-        // --- Firebase Config & Setup ---
+        // --- Firebase Setup ---
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'prod-planner-2026';
 
-        // --- Helper: Convert File to Base64 ---
-        const fileToBase64 = (file) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = (error) => reject(error);
-            });
-        };
+        // --- Helpers ---
+        const fileToBase64 = (file) => new Promise((res, rej) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => res(reader.result);
+            reader.onerror = rej;
+        });
 
         const App = () => {
             const [user, setUser] = useState(null);
-            const [view, setView] = useState('dashboard'); // dashboard, tasks, graphic-info
+            const [view, setView] = useState('graphic-info'); // Default to new view
             const [graphicData, setGraphicData] = useState([]);
-            const [isAddModalOpen, setAddModalOpen] = useState(false);
+            const [isModalOpen, setModalOpen] = useState(false);
             const [loading, setLoading] = useState(true);
             const [actionLoading, setActionLoading] = useState(false);
 
-            // Auth Effect
             useEffect(() => {
                 const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Auth error:", error);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
                     }
                 };
                 initAuth();
-                const unsubscribe = onAuthStateChanged(auth, (u) => {
-                    setUser(u);
-                    setLoading(false);
-                });
-                return () => unsubscribe();
+                onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
             }, []);
 
-            // Data Fetching Effect (Graphic Info)
             useEffect(() => {
                 if (!user) return;
                 const q = collection(db, 'artifacts', appId, 'public', 'data', 'graphic_identities');
-                const unsubscribe = onSnapshot(q, 
-                    (snapshot) => {
-                        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setGraphicData(items);
-                    },
-                    (error) => console.error("Firestore error:", error)
-                );
-                return () => unsubscribe();
+                return onSnapshot(q, (snap) => {
+                    setGraphicData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
             }, [user]);
 
-            const handleSaveGraphicInfo = async (data) => {
-                if (!user) return;
+            const handleSave = async (data) => {
                 setActionLoading(true);
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'graphic_identities'), {
-                        ...data,
-                        createdAt: Timestamp.now(),
-                        createdBy: user.uid
+                        ...data, createdAt: Timestamp.now(), uid: user.uid
                     });
-                    setAddModalOpen(false);
-                } catch (error) {
-                    console.error("Save error:", error);
-                } finally {
-                    setActionLoading(false);
-                }
+                    setModalOpen(false);
+                } catch (e) { console.error(e); }
+                setActionLoading(false);
             };
 
-            const handleDeleteInfo = async (id) => {
-                if (!confirm("Are you sure you want to delete this profile?")) return;
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'graphic_identities', id));
-                } catch (error) {
-                    console.error("Delete error:", error);
-                }
+            const handleDelete = async (id) => {
+                if (confirm("Delete this entry?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'graphic_identities', id));
             };
 
-            if (loading) return (
-                <div className="flex items-center justify-center h-screen bg-slate-50">
-                    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            );
+            if (loading) return <div className="h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
             return (
-                <div className="pb-24 lg:pb-0 lg:pl-64 min-h-screen">
-                    {/* Desktop Sidebar */}
-                    <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white hidden lg:flex flex-col p-6 z-50">
-                        <div className="flex items-center gap-3 mb-10 px-2">
-                            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                <LayoutDashboard size={24} />
-                            </div>
-                            <h1 className="font-bold text-xl tracking-tight">Production</h1>
+                <div className="min-h-screen flex flex-col lg:flex-row">
+                    {/* Sidebar */}
+                    <aside className="w-full lg:w-64 bg-slate-900 text-white p-6 flex flex-col">
+                        <div className="flex items-center gap-3 mb-10">
+                            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center"><LayoutDashboard size={20}/></div>
+                            <h1 className="font-bold text-lg">Planner 2026</h1>
                         </div>
-                        
-                        <nav className="flex-1 space-y-2">
-                            <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>
-                                <LayoutDashboard size={20} /> Dashboard
-                            </button>
-                            <button onClick={() => setView('tasks')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'tasks' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>
-                                <ListTodo size={20} /> Project Tasks
-                            </button>
-                            <button onClick={() => setView('graphic-info')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'graphic-info' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>
-                                <UserCircle size={20} /> Graphic Info
-                            </button>
+                        <nav className="flex-1 space-y-1">
+                            <NavItem active={view === 'tasks'} onClick={() => setView('tasks')} icon={<ListTodo size={20}/>} label="Tasks" />
+                            <NavItem active={view === 'graphic-info'} onClick={() => setView('graphic-info')} icon={<UserCircle size={20}/>} label="Graphic Info" />
                         </nav>
-
-                        <div className="pt-6 border-t border-slate-800">
-                            <div className="flex items-center gap-3 px-2">
-                                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold uppercase">
-                                    {user?.isAnonymous ? 'G' : 'U'}
-                                </div>
-                                <div className="flex-1 overflow-hidden">
-                                    <p className="text-sm font-semibold truncate">{user?.isAnonymous ? 'Guest User' : user.uid}</p>
-                                    <p className="text-[10px] text-slate-500">ID: {user?.uid.slice(0, 8)}</p>
-                                </div>
-                            </div>
-                        </div>
                     </aside>
 
-                    {/* Mobile Bottom Nav */}
-                    <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-slate-100 flex lg:hidden items-center justify-around px-4 z-50">
-                        <button onClick={() => setView('dashboard')} className={`flex flex-col items-center gap-1 ${view === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}>
-                            <LayoutDashboard size={24} /> <span className="text-[10px] font-medium">Dashboard</span>
-                        </button>
-                        <button onClick={() => setView('tasks')} className={`flex flex-col items-center gap-1 ${view === 'tasks' ? 'text-indigo-600' : 'text-slate-400'}`}>
-                            <ListTodo size={24} /> <span className="text-[10px] font-medium">Tasks</span>
-                        </button>
-                        <button onClick={() => setView('graphic-info')} className={`flex flex-col items-center gap-1 ${view === 'graphic-info' ? 'text-indigo-600' : 'text-slate-400'}`}>
-                            <UserCircle size={24} /> <span className="text-[10px] font-medium">Identity</span>
-                        </button>
-                    </nav>
-
                     {/* Main Content */}
-                    <main className="p-4 md:p-8 lg:p-12 max-w-7xl mx-auto">
+                    <main className="flex-1 p-4 md:p-10 bg-[#f8fafc] overflow-x-hidden">
                         {view === 'graphic-info' ? (
-                            <GraphicInfoView 
-                                items={graphicData} 
-                                onAdd={() => setAddModalOpen(true)}
-                                onDelete={handleDeleteInfo}
-                            />
+                            <div className="max-w-6xl mx-auto space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-slate-800">Graphic Info Storage</h2>
+                                        <p className="text-sm text-slate-500">เก็บข้อมูลเพื่อนำไปใช้ในงานออกแบบ</p>
+                                    </div>
+                                    <button onClick={() => setModalOpen(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                                        <Plus size={20}/> Add Info
+                                    </button>
+                                </div>
+
+                                {/* Table View (No Cards) */}
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-slideUp">
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200">
+                                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Profile</th>
+                                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Position (TH/EN)</th>
+                                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Contact</th>
+                                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">QR Line</th>
+                                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {graphicData.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-400">No data stored yet.</td>
+                                                    </tr>
+                                                ) : graphicData.map(item => (
+                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0">
+                                                                    {item.photo ? <img src={item.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={20}/></div>}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-bold text-slate-800 text-sm">{item.nameTh}</div>
+                                                                    <div className="text-xs text-slate-400">{item.nameEn}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="text-sm text-slate-600 font-medium">{item.posTh}</div>
+                                                            <div className="text-[11px] text-slate-400 italic">{item.posEn}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-2 text-sm text-slate-600 font-mono">
+                                                                <Phone size={14} className="text-slate-300"/> {item.phone}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex justify-center">
+                                                                <div className="w-10 h-10 border border-slate-200 rounded p-0.5 bg-white">
+                                                                    {item.qrLine ? <img src={item.qrLine} className="w-full h-full object-contain" /> : <QrCode size={16} className="text-slate-200 m-auto mt-2"/>}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <CopyButton data={item} />
+                                                                <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                                                    <Trash2 size={18}/>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
-                            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
-                                <p className="text-slate-400">Main Dashboard & Task System Placeholder</p>
-                                <button onClick={() => setView('graphic-info')} className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl">Go to Graphic Info</button>
+                            <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200">
+                                <ListTodo size={40} className="mb-2 opacity-20"/>
+                                <p>Task View Placeholder</p>
+                                <button onClick={() => setView('graphic-info')} className="mt-4 text-indigo-600 font-bold hover:underline">Go to Graphic Info</button>
                             </div>
                         )}
                     </main>
 
-                    {/* Modal สำหรับเพิ่ม Graphic Info */}
-                    {isAddModalOpen && (
-                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-slideUp">
+                    {/* Modal Form */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-[32px] w-full max-w-xl shadow-2xl overflow-hidden animate-slideUp">
                                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                                    <h2 className="text-xl font-bold">New Graphic Identity</h2>
-                                    <button onClick={() => setAddModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                        <X size={20} />
-                                    </button>
+                                    <h3 className="text-xl font-bold">New Identity Info</h3>
+                                    <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-full"><X size={20}/></button>
                                 </div>
-                                <div className="p-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                                    <GraphicInfoForm onSave={handleSaveGraphicInfo} isLoading={actionLoading} onCancel={() => setAddModalOpen(false)} />
+                                <div className="p-8 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                                    <GraphicForm onSave={handleSave} onCancel={() => setModalOpen(false)} loading={actionLoading} />
                                 </div>
                             </div>
                         </div>
@@ -232,218 +228,83 @@
             );
         };
 
-        const GraphicInfoView = ({ items, onAdd, onDelete }) => {
+        const NavItem = ({ active, onClick, icon, label }) => (
+            <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                {icon} <span className="font-semibold text-sm">{label}</span>
+            </button>
+        );
+
+        const CopyButton = ({ data }) => {
+            const [copied, setCopied] = useState(false);
+            const handleCopy = () => {
+                const text = `Name: ${data.nameTh} (${data.nameEn})\nPosition: ${data.posTh} (${data.posEn})\nPhone: ${data.phone}`;
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
             return (
-                <div className="space-y-8">
-                    <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                        <div>
-                            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Graphic Info</h2>
-                            <p className="text-slate-500 mt-1">Identities & Info for design team assets</p>
-                        </div>
-                        <button 
-                            onClick={onAdd}
-                            className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold"
-                        >
-                            <Plus size={20} /> Add Identity
-                        </button>
-                    </header>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {items.length === 0 ? (
-                            <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
-                                <UserCircle size={48} className="mx-auto text-slate-300 mb-4" />
-                                <p className="text-slate-500 font-medium">No identities saved yet.</p>
-                                <button onClick={onAdd} className="text-indigo-600 text-sm font-semibold mt-2 hover:underline">Add the first one</button>
-                            </div>
-                        ) : (
-                            items.map(item => (
-                                <div key={item.id} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group relative">
-                                    <button 
-                                        onClick={() => onDelete(item.id)}
-                                        className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                    
-                                    <div className="flex gap-4 mb-6">
-                                        <div className="w-20 h-20 rounded-2xl bg-slate-50 overflow-hidden flex-shrink-0 border border-slate-100">
-                                            {item.photo ? (
-                                                <img src={item.photo} className="w-full h-full object-cover" alt="Profile" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={32} /></div>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg text-slate-900 leading-tight">{item.nameTh}</h3>
-                                            <p className="text-slate-400 text-sm mb-1">{item.nameEn}</p>
-                                            <span className="inline-block px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase rounded-md">
-                                                {item.posEn || 'STAFF'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3 pt-4 border-t border-slate-50">
-                                        <div className="flex items-center gap-3 text-sm">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                                                <Languages size={14} />
-                                            </div>
-                                            <span className="text-slate-600 font-medium">{item.posTh}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-sm">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                                                <Phone size={14} />
-                                            </div>
-                                            <span className="text-slate-600 font-medium font-mono">{item.phone}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 flex items-center justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase">QR Line</span>
-                                            <div className="w-12 h-12 mt-1 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center overflow-hidden">
-                                                {item.qrLine ? (
-                                                    <img src={item.qrLine} className="w-full h-full object-cover" alt="QR" />
-                                                ) : (
-                                                    <QrCode size={20} className="text-emerald-500" />
-                                                )}
-                                            </div>
-                                        </div>
-                                        <button className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors">
-                                            Copy for Designer
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
+                <button onClick={handleCopy} className={`p-2 rounded-lg transition-all ${copied ? 'text-emerald-500 bg-emerald-50' : 'text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'}`}>
+                    {copied ? <Check size={18}/> : <Copy size={18}/>}
+                </button>
             );
         };
 
-        const GraphicInfoForm = ({ onSave, isLoading, onCancel }) => {
-            const [formData, setFormData] = useState({
-                nameTh: '', nameEn: '',
-                posTh: '', posEn: '',
-                phone: '',
-                photo: null,
-                qrLine: null
-            });
+        const GraphicForm = ({ onSave, onCancel, loading }) => {
+            const [form, setForm] = useState({ nameTh: '', nameEn: '', posTh: '', posEn: '', phone: '', photo: null, qrLine: null });
 
-            const handleFileChange = async (e, field) => {
+            const handleFile = async (e, field) => {
                 const file = e.target.files[0];
-                if (file) {
-                    try {
-                        const base64 = await fileToBase64(file);
-                        setFormData(prev => ({ ...prev, [field]: base64 }));
-                    } catch (err) {
-                        console.error("File error:", err);
-                    }
-                }
-            };
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                if (!formData.nameTh || !formData.phone) {
-                    alert("กรุณากรอกชื่อไทยและเบอร์โทรศัพท์");
-                    return;
-                }
-                onSave(formData);
+                if (file) setForm(p => ({ ...p, [field]: null })); // reset
+                const base64 = await fileToBase64(file);
+                setForm(p => ({ ...p, [field]: base64 }));
             };
 
             return (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">ชื่อ (ภาษาไทย)</label>
-                            <input 
-                                type="text" value={formData.nameTh} onChange={e => setFormData(p => ({...p, nameTh: e.target.value}))}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น นายพัทธดนย์..."
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">Name (English)</label>
-                            <input 
-                                type="text" value={formData.nameEn} onChange={e => setFormData(p => ({...p, nameEn: e.target.value}))}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. John Doe"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">ตำแหน่ง (ภาษาไทย)</label>
-                            <input 
-                                type="text" value={formData.posTh} onChange={e => setFormData(p => ({...p, posTh: e.target.value}))}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น กราฟิกดีไซน์เนอร์"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Position (English)</label>
-                            <input 
-                                type="text" value={formData.posEn} onChange={e => setFormData(p => ({...p, posEn: e.target.value}))}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Art Director"
-                            />
-                        </div>
-                        <div className="col-span-full space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><Phone size={12}/> เบอร์โทรศัพท์</label>
-                            <input 
-                                type="tel" value={formData.phone} onChange={e => setFormData(p => ({...p, phone: e.target.value}))}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="08X-XXXXXXX"
-                            />
-                        </div>
+                <form onSubmit={e => { e.preventDefault(); onSave(form); }} className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input label="ชื่อ (TH)" value={form.nameTh} onChange={v => setForm(p => ({...p, nameTh: v}))} placeholder="นายสมชาย..." required />
+                        <Input label="Name (EN)" value={form.nameEn} onChange={v => setForm(p => ({...p, nameEn: v}))} placeholder="Somchai..." />
+                        <Input label="ตำแหน่ง (TH)" value={form.posTh} onChange={v => setForm(p => ({...p, posTh: v}))} placeholder="กราฟิก..." />
+                        <Input label="Position (EN)" value={form.posEn} onChange={v => setForm(p => ({...p, posEn: v}))} placeholder="Graphic..." />
+                    </div>
+                    <Input label="เบอร์โทรศัพท์" value={form.phone} onChange={v => setForm(p => ({...p, phone: v}))} placeholder="08XXXXXXXX" required />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <FileSelect label="Personal Photo" icon={<Camera size={20}/>} value={form.photo} onChange={e => handleFile(e, 'photo')} />
+                        <FileSelect label="QR Line" icon={<QrCode size={20}/>} value={form.qrLine} onChange={e => handleFile(e, 'qrLine')} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><Camera size={12}/> รูปถ่ายส่วนตัว</label>
-                            <div 
-                                onClick={() => document.getElementById('photo-up').click()}
-                                className="h-32 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all relative overflow-hidden"
-                            >
-                                {formData.photo ? (
-                                    <img src={formData.photo} className="w-full h-full object-cover" />
-                                ) : (
-                                    <>
-                                        <ImageIcon className="text-slate-300 mb-2" size={24} />
-                                        <span className="text-[10px] text-slate-400 font-medium">Click to upload</span>
-                                    </>
-                                )}
-                                <input id="photo-up" type="file" accept="image/*" onChange={e => handleFileChange(e, 'photo')} className="hidden" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><QrCode size={12}/> QR Code Line</label>
-                            <div 
-                                onClick={() => document.getElementById('qr-up').click()}
-                                className="h-32 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition-all relative overflow-hidden"
-                            >
-                                {formData.qrLine ? (
-                                    <img src={formData.qrLine} className="w-full h-full object-cover" />
-                                ) : (
-                                    <>
-                                        <QrCode className="text-slate-300 mb-2" size={24} />
-                                        <span className="text-[10px] text-slate-400 font-medium">Click to upload</span>
-                                    </>
-                                )}
-                                <input id="qr-up" type="file" accept="image/*" onChange={e => handleFileChange(e, 'qrLine')} className="hidden" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-6">
-                        <button 
-                            type="button" onClick={onCancel}
-                            className="flex-1 px-6 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            type="submit" disabled={isLoading}
-                            className="flex-[2] px-6 py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
-                        >
-                            {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><Save size={20}/> Save Identity</>}
+                    <div className="flex gap-3 pt-4">
+                        <button type="button" onClick={onCancel} className="flex-1 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200">Cancel</button>
+                        <button type="submit" disabled={loading} className="flex-[2] py-3.5 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 disabled:opacity-50">
+                            {loading ? "Saving..." : "Save Information"}
                         </button>
                     </div>
                 </form>
             );
         };
+
+        const Input = ({ label, ...props }) => (
+            <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">{label}</label>
+                <input {...props} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm" onChange={e => props.onChange(e.target.value)} />
+            </div>
+        );
+
+        const FileSelect = ({ label, icon, value, onChange }) => (
+            <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">{label}</label>
+                <div onClick={() => document.getElementById(label).click()} className={`h-28 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${value ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
+                    {value ? <img src={value} className="w-full h-full object-cover" /> : <div className="text-slate-300 flex flex-col items-center gap-1">{icon}<span className="text-[10px]">Upload</span></div>}
+                    <input id={label} type="file" hidden accept="image/*" onChange={onChange} />
+                </div>
+            </div>
+        );
 
         const container = document.getElementById('root');
         const root = createRoot(container);
