@@ -1,39 +1,532 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React App with Firebase</title>
-    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js"></script>
-    <!-- Add other Firebase SDKs as needed -->
-    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Production Planner & Design Hub 2026</title>
+    
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Fusemxd/task.fuse.hyg/37e17d0f0f712995e6e21546cba558911aecb74a/3.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1"
+      }
+    }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Anuphan:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', 'Anuphan', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .animate-fade { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
-    <script type="module">
-        // Your web app's Firebase configuration
-        // You can find your Firebase config object in the Firebase Console
+
+    <script type="text/babel">
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged 
+        } from 'firebase/auth';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            query, 
+            onSnapshot, 
+            serverTimestamp,
+            doc,
+            deleteDoc,
+            orderBy
+        } from 'firebase/firestore';
+        import { 
+            LayoutDashboard, 
+            Calendar as CalendarIcon, 
+            CheckSquare, 
+            Plus, 
+            MoreVertical, 
+            Search, 
+            Bell, 
+            User, 
+            ChevronRight,
+            Clock,
+            AlertCircle,
+            FileText,
+            Trash2,
+            Copy,
+            Image as ImageIcon,
+            QrCode,
+            Phone,
+            CheckCircle2,
+            Palette,
+            ExternalLink,
+            Download
+        } from 'lucide-react';
+
+        // --- Firebase Config ---
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID",
+            apiKey: "AIzaSyBdmGg7vi9QAD04VFM9suKvjoId_HO7s18",
+            authDomain: "fusetaskhyg.firebaseapp.com",
+            projectId: "fusetaskhyg",
+            storageBucket: "fusetaskhyg.firebasestorage.app",
+            messagingSenderId: "667329598644",
+            appId: "1:667329598644:web:79abb5f6a20739d14f73e1",
+            measurementId: "G-EB845SQBW1"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'production-planner-2026';
+
+        // --- Components ---
+
+        const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
+            <button 
+                onClick={onClick}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    active 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+            >
+                <Icon size={20} />
+                <span className="font-medium text-sm">{label}</span>
+            </button>
+        );
+
+        // --- Design Hub Module ---
+        const DesignHub = ({ user }) => {
+            const [view, setView] = useState('list');
+            const [requests, setRequests] = useState([]);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [errorMsg, setErrorMsg] = useState('');
+            const [form, setForm] = useState({
+                nameTH: '', nameEN: '',
+                posTH: '', posEN: '',
+                phone: '',
+                imgProfile: '',
+                imgQR: ''
+            });
+
+            useEffect(() => {
+                if (!user) return;
+                const q = collection(db, 'artifacts', appId, 'public', 'data', 'design_requests');
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setRequests(data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds));
+                }, (err) => {
+                    console.error("Firestore Error:", err);
+                    setErrorMsg("ไม่สามารถโหลดข้อมูลได้");
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            const handleFileUpload = (e, field) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 500000) {
+                    alert("ไฟล์ใหญ่เกินไป กรุณาใช้ไฟล์ที่ต่ำกว่า 500KB");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setForm(prev => ({ ...prev, [field]: reader.result }));
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!user) {
+                    alert("กรุณาเข้าสู่ระบบก่อน");
+                    return;
+                }
+                setIsSubmitting(true);
+                setErrorMsg('');
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'design_requests'), {
+                        ...form,
+                        createdBy: user.uid,
+                        createdAt: serverTimestamp()
+                    });
+                    setForm({ nameTH: '', nameEN: '', posTH: '', posEN: '', phone: '', imgProfile: '', imgQR: '' });
+                    setView('list');
+                    alert("บันทึกข้อมูลสำเร็จแล้ว!");
+                } catch (err) {
+                    console.error(err);
+                    setErrorMsg("เกิดข้อผิดพลาด: " + err.message);
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
+            const copyToClipboard = (text) => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert("คัดลอกสำเร็จแล้ว!");
+                } catch (err) {
+                    console.error('Copy error:', err);
+                }
+                document.body.removeChild(textArea);
+            };
+
+            const handleDelete = async (id) => {
+                if(window.confirm("คุณต้องการลบข้อมูลนี้ใช่หรือไม่?")) {
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'design_requests', id));
+                        alert("ลบข้อมูลสำเร็จแล้ว!");
+                    } catch (err) {
+                        alert("เกิดข้อผิดพลาด: " + err.message);
+                    }
+                }
+            };
+
+            return (
+                <div className="animate-fade">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-900">Design Hub</h1>
+                            <p className="text-slate-500 text-sm">จัดการข้อมูลงานออกแบบนามบัตรและสื่อสิ่งพิมพ์</p>
+                        </div>
+                        <button 
+                            onClick={() => setView(view === 'list' ? 'form' : 'list')}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg shadow-blue-100"
+                        >
+                            {view === 'list' ? <Plus size={18} /> : <FileText size={18} />}
+                            {view === 'list' ? 'ส่งคำขอข้อมูลใหม่' : 'ดูรายการข้อมูล'}
+                        </button>
+                    </div>
+
+                    {errorMsg && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
+                            {errorMsg}
+                        </div>
+                    )}
+
+                    {view === 'form' ? (
+                        <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="font-semibold text-lg flex items-center gap-2">
+                                    <Palette size={20} className="text-blue-600" />
+                                    กรอกข้อมูลพนักงาน
+                                </h2>
+                            </div>
+                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">ชื่อ-นามสกุล (TH) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.nameTH} 
+                                            onChange={e => setForm({...form, nameTH: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="เช่น สมชาย ใจดี"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">Name-Surname (EN) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.nameEN} 
+                                            onChange={e => setForm({...form, nameEN: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="e.g. Somchai Jaidee"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">ตำแหน่ง (TH) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.posTH} 
+                                            onChange={e => setForm({...form, posTH: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="เช่น ผู้จัดการฝ่าย"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">Position (EN) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.posEN} 
+                                            onChange={e => setForm({...form, posEN: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="e.g. Manager"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-semibold text-slate-700">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input 
+                                                required 
+                                                type="tel" 
+                                                value={form.phone} 
+                                                onChange={e => setForm({...form, phone: e.target.value})} 
+                                                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                                placeholder="08xxxxxxxxx"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-semibold text-slate-700">1. รูปพนักงาน (ครึ่งตัว/หน้าตรง) <span className="text-red-500">*</span></label>
+                                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
+                                            {form.imgProfile ? (
+                                                <img src={form.imgProfile} className="h-32 w-32 object-cover rounded-full border-2 border-white shadow-md" alt="profile" />
+                                            ) : (
+                                                <ImageIcon size={32} className="text-slate-300" />
+                                            )}
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={e => handleFileUpload(e, 'imgProfile')} 
+                                                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-semibold text-slate-700">2. QR Code Line <span className="text-red-500">*</span></label>
+                                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
+                                            {form.imgQR ? (
+                                                <img src={form.imgQR} className="h-32 w-32 object-contain rounded-lg border-2 border-white shadow-md" alt="qrcode" />
+                                            ) : (
+                                                <QrCode size={32} className="text-slate-300" />
+                                            )}
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={e => handleFileUpload(e, 'imgQR')} 
+                                                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    disabled={isSubmitting}
+                                    type="submit" 
+                                    className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูลและส่งให้กราฟิก'}
+                                </button>
+                            </form>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {requests.length === 0 ? (
+                                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                                    <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Palette size={24} className="text-slate-400" />
+                                    </div>
+                                    <h3 className="font-bold text-slate-900 mb-2">ยังไม่มีข้อมูลส่งงาน</h3>
+                                    <p className="text-slate-500">ทีมงานกราฟิกกำลังรอรับข้อมูลจากคุณ...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-6">
+                                    {requests.map(req => (
+                                        <div key={req.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-md">
+                                            {/* Preview Side */}
+                                            <div className="p-6 bg-slate-50 border-r border-slate-100 flex flex-col items-center justify-center gap-4 w-full md:w-64">
+                                                <div className="relative group">
+                                                    <img src={req.imgProfile || 'https://via.placeholder.com/150'} className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover" alt="profile" />
+                                                    {req.imgProfile && (
+                                                        <a href={req.imgProfile} download="profile.png" className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                            <Download size={20} className="text-white" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <div className="relative group">
+                                                    <img src={req.imgQR || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-lg border-4 border-white shadow-sm object-contain" alt="qrcode" />
+                                                    {req.imgQR && (
+                                                        <a href={req.imgQR} download="qrcode.png" className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                            <Download size={18} className="text-white" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Data Side */}
+                                            <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="col-span-2 flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">New Request</span>
+                                                        <p className="text-[10px] text-slate-400 mt-1">ID: {req.id}</p>
+                                                    </div>
+                                                    <button onClick={() => handleDelete(req.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+
+                                                {[
+                                                    { label: 'Name (TH)', value: req.nameTH },
+                                                    { label: 'Name (EN)', value: req.nameEN },
+                                                    { label: 'Position (TH)', value: req.posTH },
+                                                    { label: 'Position (EN)', value: req.posEN },
+                                                    { label: 'Phone', value: req.phone }
+                                                ].map((field, i) => (
+                                                    <div key={i} className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 group relative">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{field.label}</span>
+                                                            <button 
+                                                                onClick={() => copyToClipboard(field.value)}
+                                                                className="p-1.5 bg-white rounded-md text-blue-600 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-50"
+                                                                title="Click to copy"
+                                                            >
+                                                                <Copy size={14} />
+                                                            </button>
+                                                        </div>
+                                                        <p className="font-medium text-slate-900 break-words">{field.value || '-'}</p>
+                                                    </div>
+                                                ))}
+
+                                                <div className="col-span-1 md:col-span-2 flex items-center gap-3 pt-2">
+                                                    <div className="flex-1 h-px bg-slate-100"></div>
+                                                    <span className="text-[10px] text-slate-300 italic">Ready for production</span>
+                                                    <div className="flex-1 h-px bg-slate-100"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
         };
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        // --- Main App ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [user, setUser] = useState(null);
+            const [notifications, setNotifications] = useState(3);
 
-        // Optionally, you can add analytics
-        const analytics = firebase.getAnalytics(app);
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (err) {
+                        console.error("Auth Error:", err);
+                    }
+                };
+                initAuth();
+                return onAuthStateChanged(auth, (u) => setUser(u));
+            }, []);
 
-        // Your React application logic here
-        import App from './App';
-        ReactDOM.render(<App />, document.getElementById('root'));
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'design': return <DesignHub user={user} />;
+                    case 'dashboard':
+                    default: return (
+                        <div className="p-12 text-center">
+                            <h2 className="text-2xl font-bold text-slate-800">Production Dashboard</h2>
+                            <p className="text-slate-500 mt-2">หน้าระบบเดิมกำลังเปิดใช้งานร่วมกัน...</p>
+                        </div>
+                    );
+                }
+            };
+
+            return (
+                <div className="flex min-h-screen">
+                    {/* Sidebar */}
+                    <div className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 hidden lg:flex fixed h-full z-30">
+                        <div className="flex items-center gap-3 px-2">
+                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                                <span className="text-white font-black text-xl">P</span>
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-slate-900 leading-tight">Planner</h2>
+                                <p className="text-[10px] text-slate-500 font-medium">VERSION 2026.1</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                            <SidebarItem icon={CheckSquare} label="All Tasks" active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+                            <SidebarItem icon={CalendarIcon} label="Calendar" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
+                            <div className="pt-4 pb-2 px-4">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Specialist Tool</span>
+                            </div>
+                            <SidebarItem icon={Palette} label="Design Hub" active={activeTab === 'design'} onClick={() => setActiveTab('design')} />
+                        </div>
+
+                        <div className="mt-auto p-4 bg-slate-50 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+                                    <User size={16} className="m-2 text-slate-500" />
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-xs font-bold text-slate-900 truncate">{user?.uid || 'Guest'}</p>
+                                    <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                                        <div className="w-1 h-1 bg-emerald-500 rounded-full"></div> Online
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Body */}
+                    <div className="flex-1 lg:ml-64 min-w-0">
+                        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
+                            <div className="flex items-center gap-4">
+                                <div className="lg:hidden w-8 h-8 bg-blue-600 rounded-lg"></div>
+                                <div className="relative hidden sm:block">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input className="bg-slate-100 border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Search resources..." />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                                    <Bell size={20} />
+                                    {notifications > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+                                </button>
+                                <div className="h-8 w-px bg-slate-200"></div>
+                                <div className="flex items-center gap-2">
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-xs font-bold text-slate-900 leading-none">Admin Mode</p>
+                                        <p className="text-[10px] text-slate-500">Creative Team</p>
+                                    </div>
+                                    <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
+                                        AD
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        <main className="p-4 md:p-8 max-w-6xl mx-auto">
+                            {renderContent()}
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
