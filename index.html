@@ -32,7 +32,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body className="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -80,7 +80,14 @@
         } from 'lucide-react';
 
         // --- Firebase Config ---
-        const firebaseConfig = JSON.parse('{"apiKey":"","authDomain":"local-project.firebaseapp.com","projectId":"local-project","storageBucket":"local-project.appspot.com","messagingSenderId":"123456789","appId":"1:123456789:web:abcdef"}');
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY_HERE",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "your-messaging-sender-id",
+            appId: "your-app-id"
+        };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -91,22 +98,23 @@
         const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
             <button 
                 onClick={onClick}
-                class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                     active 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
                     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
                 }`}
             >
                 <Icon size={20} />
-                <span class="font-medium text-sm">{label}</span>
+                <span className="font-medium text-sm">{label}</span>
             </button>
         );
 
         // --- Design Hub Module ---
         const DesignHub = ({ user }) => {
-            const [view, setView] = useState('list'); // 'list' or 'form'
+            const [view, setView] = useState('list');
             const [requests, setRequests] = useState([]);
             const [isSubmitting, setIsSubmitting] = useState(false);
+            const [errorMsg, setErrorMsg] = useState('');
             const [form, setForm] = useState({
                 nameTH: '', nameEN: '',
                 posTH: '', posEN: '',
@@ -117,20 +125,26 @@
 
             useEffect(() => {
                 if (!user) return;
-                const q = collection(db, 'artifacts', appId, 'public', 'data', 'design_requests');
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // Simple sort by date in memory (Rule 2)
-                    setRequests(data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds));
-                }, (err) => console.error("Firestore Error:", err));
-                return () => unsubscribe();
+                try {
+                    const q = collection(db, 'artifacts', appId, 'public', 'data', 'design_requests');
+                    const unsubscribe = onSnapshot(q, (snapshot) => {
+                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setRequests(data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds));
+                    }, (err) => {
+                        console.error("Firestore Error:", err);
+                        setErrorMsg("ไม่สามารถเชื่อมต่อฐานข้อมูล");
+                    });
+                    return () => unsubscribe();
+                } catch (err) {
+                    console.error("Error:", err);
+                }
             }, [user]);
 
             const handleFileUpload = (e, field) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (file.size > 500000) { // 500KB limit for base64 safety
-                    alert("Image too large. Please use image under 500KB.");
+                if (file.size > 500000) {
+                    alert("ภาพขนาดใหญ่เกินไป กรุณาใช้ภาพขนาดต่ำกว่า 500KB");
                     return;
                 }
                 const reader = new FileReader();
@@ -142,8 +156,12 @@
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                if (!user) return;
+                if (!user) {
+                    alert("กรุณาเข้าสู่ระบบ");
+                    return;
+                }
                 setIsSubmitting(true);
+                setErrorMsg('');
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'design_requests'), {
                         ...form,
@@ -152,8 +170,10 @@
                     });
                     setForm({ nameTH: '', nameEN: '', posTH: '', posEN: '', phone: '', imgProfile: '', imgQR: '' });
                     setView('list');
+                    alert("บันทึกข้อมูลสำเร็จ!");
                 } catch (err) {
                     console.error(err);
+                    setErrorMsg("เกิดข้อผิดพลาด: " + err.message);
                 } finally {
                     setIsSubmitting(false);
                 }
@@ -166,6 +186,7 @@
                 textArea.select();
                 try {
                     document.execCommand('copy');
+                    alert("คัดลอกสำเร็จ!");
                 } catch (err) {
                     console.error('Fallback: Oops, unable to copy', err);
                 }
@@ -174,82 +195,136 @@
 
             const handleDelete = async (id) => {
                 if(window.confirm("คุณต้องการลบข้อมูลนี้ใช่หรือไม่?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'design_requests', id));
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'design_requests', id));
+                        alert("ลบสำเร็จ!");
+                    } catch (err) {
+                        alert("ไม่สามารถลบข้อมูลได้: " + err.message);
+                    }
                 }
             };
 
             return (
-                <div class="animate-fade">
-                    <div class="flex justify-between items-center mb-8">
+                <div className="animate-fade">
+                    <div className="flex justify-between items-center mb-8">
                         <div>
-                            <h1 class="text-2xl font-bold text-slate-900">Design Hub</h1>
-                            <p class="text-slate-500 text-sm">จัดการข้อมูลงานออกแบบนามบัตรและสื่อสิ่งพิมพ์</p>
+                            <h1 className="text-2xl font-bold text-slate-900">Design Hub</h1>
+                            <p className="text-slate-500 text-sm">จัดการข้อมูลงานออกแบบนามบัตรและสื่อสิ่งพิมพ์</p>
                         </div>
                         <button 
                             onClick={() => setView(view === 'list' ? 'form' : 'list')}
-                            class="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg shadow-blue-100"
+                            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg shadow-blue-100"
                         >
                             {view === 'list' ? <Plus size={18} /> : <FileText size={18} />}
                             {view === 'list' ? 'ส่งคำขอข้อมูลใหม่' : 'ดูรายการข้อมูล'}
                         </button>
                     </div>
 
+                    {errorMsg && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
+                            {errorMsg}
+                        </div>
+                    )}
+
                     {view === 'form' ? (
-                        <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div class="p-6 border-b border-slate-100 bg-slate-50/50">
-                                <h2 class="font-semibold text-lg flex items-center gap-2">
-                                    <Palette size={20} class="text-blue-600" />
+                        <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="font-semibold text-lg flex items-center gap-2">
+                                    <Palette size={20} className="text-blue-600" />
                                     กรอกข้อมูลพนักงาน
                                 </h2>
                             </div>
-                            <form onSubmit={handleSubmit} class="p-8 space-y-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-semibold text-slate-700">ชื่อ-นามสกุล (TH)</label>
-                                        <input required value={form.nameTH} onChange={e => setForm({...form, nameTH: e.target.value})} class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="ภาษาไทย" />
+                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">ชื่อ-นามสกุล (TH) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.nameTH} 
+                                            onChange={e => setForm({...form, nameTH: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="ภาษาไทย"
+                                        />
                                     </div>
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-semibold text-slate-700">Name-Surname (EN)</label>
-                                        <input required value={form.nameEN} onChange={e => setForm({...form, nameEN: e.target.value})} class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="English Language" />
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">Name-Surname (EN) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.nameEN} 
+                                            onChange={e => setForm({...form, nameEN: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="English Language"
+                                        />
                                     </div>
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-semibold text-slate-700">ตำแหน่ง (TH)</label>
-                                        <input required value={form.posTH} onChange={e => setForm({...form, posTH: e.target.value})} class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="ภาษาไทย" />
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">ตำแหน่ง (TH) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.posTH} 
+                                            onChange={e => setForm({...form, posTH: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="ภาษาไทย"
+                                        />
                                     </div>
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-semibold text-slate-700">Position (EN)</label>
-                                        <input required value={form.posEN} onChange={e => setForm({...form, posEN: e.target.value})} class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="English Language" />
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700">Position (EN) <span className="text-red-500">*</span></label>
+                                        <input 
+                                            required 
+                                            value={form.posEN} 
+                                            onChange={e => setForm({...form, posEN: e.target.value})} 
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                            placeholder="English Language"
+                                        />
                                     </div>
-                                    <div class="space-y-2 md:col-span-2">
-                                        <label class="text-sm font-semibold text-slate-700">เบอร์โทรศัพท์</label>
-                                        <div class="relative">
-                                            <Phone size={18} class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="08x-xxx-xxxx" />
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-semibold text-slate-700">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input 
+                                                required 
+                                                type="tel" 
+                                                value={form.phone} 
+                                                onChange={e => setForm({...form, phone: e.target.value})} 
+                                                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                                                placeholder="08x-xxx-xxxx"
+                                            />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                    <div class="space-y-4">
-                                        <label class="text-sm font-semibold text-slate-700">1. รูปพนักงาน (ครึ่งตัว/หน้าตรง)</label>
-                                        <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-semibold text-slate-700">1. รูปพนักงาน (ครึ่งตัว/หน้าตรง) <span className="text-red-500">*</span></label>
+                                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
                                             {form.imgProfile ? (
-                                                <img src={form.imgProfile} class="h-32 w-32 object-cover rounded-full border-2 border-white shadow-md" />
+                                                <img src={form.imgProfile} className="h-32 w-32 object-cover rounded-full border-2 border-white shadow-md" alt="profile" />
                                             ) : (
-                                                <ImageIcon size={32} class="text-slate-300" />
+                                                <ImageIcon size={32} className="text-slate-300" />
                                             )}
-                                            <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'imgProfile')} class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                                            <input 
+                                                required
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={e => handleFileUpload(e, 'imgProfile')} 
+                                                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                                            />
                                         </div>
                                     </div>
-                                    <div class="space-y-4">
-                                        <label class="text-sm font-semibold text-slate-700">2. QR Code Line</label>
-                                        <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-semibold text-slate-700">2. QR Code Line <span className="text-red-500">*</span></label>
+                                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-blue-400 transition-colors bg-slate-50">
                                             {form.imgQR ? (
-                                                <img src={form.imgQR} class="h-32 w-32 object-contain rounded-lg border-2 border-white shadow-md" />
+                                                <img src={form.imgQR} className="h-32 w-32 object-contain rounded-lg border-2 border-white shadow-md" alt="qrcode" />
                                             ) : (
-                                                <QrCode size={32} class="text-slate-300" />
+                                                <QrCode size={32} className="text-slate-300" />
                                             )}
-                                            <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'imgQR')} class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                                            <input 
+                                                required
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={e => handleFileUpload(e, 'imgQR')} 
+                                                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" 
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -257,50 +332,50 @@
                                 <button 
                                     disabled={isSubmitting}
                                     type="submit" 
-                                    class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูลและส่งให้กราฟิก'}
                                 </button>
                             </form>
                         </div>
                     ) : (
-                        <div class="space-y-4">
+                        <div className="space-y-4">
                             {requests.length === 0 ? (
-                                <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
-                                    <div class="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Palette size={24} class="text-slate-400" />
+                                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                                    <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Palette size={24} className="text-slate-400" />
                                     </div>
-                                    <h3 class="font-bold text-slate-900 mb-2">ยังไม่มีข้อมูลส่งงาน</h3>
-                                    <p class="text-slate-500">ทีมงานกราฟิกกำลังรอรับข้อมูลจากคุณ...</p>
+                                    <h3 className="font-bold text-slate-900 mb-2">ยังไม่มีข้อมูลส่งงาน</h3>
+                                    <p className="text-slate-500">ทีมงานกราฟิกกำลังรอรับข้อมูลจากคุณ...</p>
                                 </div>
                             ) : (
-                                <div class="grid grid-cols-1 gap-6">
+                                <div className="grid grid-cols-1 gap-6">
                                     {requests.map(req => (
-                                        <div key={req.id} class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-md">
+                                        <div key={req.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-md">
                                             {/* Preview Side */}
-                                            <div class="p-6 bg-slate-50 border-r border-slate-100 flex flex-col items-center justify-center gap-4 w-full md:w-64">
-                                                <div class="relative group">
-                                                    <img src={req.imgProfile || 'https://via.placeholder.com/150'} class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover" />
-                                                    <a href={req.imgProfile} download="profile.png" class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                            <div className="p-6 bg-slate-50 border-r border-slate-100 flex flex-col items-center justify-center gap-4 w-full md:w-64">
+                                                <div className="relative group">
+                                                    <img src={req.imgProfile || 'https://via.placeholder.com/150'} className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover" alt="profile" />
+                                                    <a href={req.imgProfile} download="profile.png" className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                                         <Download size={20} />
                                                     </a>
                                                 </div>
-                                                <div class="relative group">
-                                                    <img src={req.imgQR || 'https://via.placeholder.com/150'} class="w-24 h-24 rounded-lg border-4 border-white shadow-sm object-contain" />
-                                                    <a href={req.imgQR} download="qrcode.png" class="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                                <div className="relative group">
+                                                    <img src={req.imgQR || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-lg border-4 border-white shadow-sm object-contain" alt="qrcode" />
+                                                    <a href={req.imgQR} download="qrcode.png" className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                                         <Download size={18} />
                                                     </a>
                                                 </div>
                                             </div>
 
                                             {/* Data Side - Focus for Graphic Team */}
-                                            <div class="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div class="col-span-2 flex justify-between items-start mb-2">
+                                            <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="col-span-2 flex justify-between items-start mb-2">
                                                     <div>
-                                                        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">New Request</span>
-                                                        <p class="text-[10px] text-slate-400 mt-1">ID: {req.id}</p>
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">New Request</span>
+                                                        <p className="text-[10px] text-slate-400 mt-1">ID: {req.id}</p>
                                                     </div>
-                                                    <button onClick={() => handleDelete(req.id)} class="text-slate-300 hover:text-red-500 transition-colors">
+                                                    <button onClick={() => handleDelete(req.id)} className="text-slate-300 hover:text-red-500 transition-colors" title="Delete">
                                                         <Trash2 size={18} />
                                                     </button>
                                                 </div>
@@ -312,25 +387,25 @@
                                                     { label: 'Position (EN)', value: req.posEN },
                                                     { label: 'Phone', value: req.phone }
                                                 ].map((field, i) => (
-                                                    <div key={i} class="bg-slate-50/50 p-3 rounded-xl border border-slate-100 group relative">
-                                                        <div class="flex justify-between items-center mb-1">
-                                                            <span class="text-[10px] font-bold text-slate-400 uppercase">{field.label}</span>
+                                                    <div key={i} className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 group relative">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{field.label}</span>
                                                             <button 
                                                                 onClick={() => copyToClipboard(field.value)}
-                                                                class="p-1.5 bg-white rounded-md text-blue-600 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white"
+                                                                className="p-1.5 bg-white rounded-md text-blue-600 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white"
                                                                 title="Click to copy"
                                                             >
                                                                 <Copy size={14} />
                                                             </button>
                                                         </div>
-                                                        <p class="font-medium text-slate-900 break-words">{field.value || '-'}</p>
+                                                        <p className="font-medium text-slate-900 break-words">{field.value || '-'}</p>
                                                     </div>
                                                 ))}
 
-                                                <div class="col-span-1 md:col-span-2 flex items-center gap-3 pt-2">
-                                                    <div class="flex-1 h-px bg-slate-100"></div>
-                                                    <span class="text-[10px] text-slate-300 italic">Ready for production</span>
-                                                    <div class="flex-1 h-px bg-slate-100"></div>
+                                                <div className="col-span-1 md:col-span-2 flex items-center gap-3 pt-2">
+                                                    <div className="flex-1 h-px bg-slate-100"></div>
+                                                    <span className="text-[10px] text-slate-300 italic">Ready for production</span>
+                                                    <div className="flex-1 h-px bg-slate-100"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -366,47 +441,47 @@
                     case 'design': return <DesignHub user={user} />;
                     case 'dashboard':
                     default: return (
-                        <div class="p-12 text-center">
-                            <h2 class="text-2xl font-bold text-slate-800">Production Dashboard</h2>
-                            <p class="text-slate-500 mt-2">หน้าระบบเดิมกำลังเปิดใช้งานร่วมกัน...</p>
+                        <div className="p-12 text-center">
+                            <h2 className="text-2xl font-bold text-slate-800">Production Dashboard</h2>
+                            <p className="text-slate-500 mt-2">หน้าระบบเดิมกำลังเปิดใช้งานร่วมกัน...</p>
                         </div>
                     );
                 }
             };
 
             return (
-                <div class="flex min-h-screen">
+                <div className="flex min-h-screen">
                     {/* Sidebar */}
-                    <div class="w-64 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 hidden lg:flex fixed h-full z-30">
-                        <div class="flex items-center gap-3 px-2">
-                            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                                <span class="text-white font-black text-xl">P</span>
+                    <div className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 hidden lg:flex fixed h-full z-30">
+                        <div className="flex items-center gap-3 px-2">
+                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                                <span className="text-white font-black text-xl">P</span>
                             </div>
                             <div>
-                                <h2 class="font-bold text-slate-900 leading-tight">Planner</h2>
-                                <p class="text-[10px] text-slate-500 font-medium">VERSION 2026.1</p>
+                                <h2 className="font-bold text-slate-900 leading-tight">Planner</h2>
+                                <p className="text-[10px] text-slate-500 font-medium">VERSION 2026.1</p>
                             </div>
                         </div>
 
-                        <div class="space-y-2">
+                        <div className="space-y-2">
                             <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                             <SidebarItem icon={CheckSquare} label="All Tasks" active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
                             <SidebarItem icon={CalendarIcon} label="Calendar" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
-                            <div class="pt-4 pb-2 px-4">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Specialist Tool</span>
+                            <div className="pt-4 pb-2 px-4">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Specialist Tool</span>
                             </div>
                             <SidebarItem icon={Palette} label="Design Hub" active={activeTab === 'design'} onClick={() => setActiveTab('design')} />
                         </div>
 
-                        <div class="mt-auto p-4 bg-slate-50 rounded-2xl">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
-                                    <User size={16} class="m-2 text-slate-500" />
+                        <div className="mt-auto p-4 bg-slate-50 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+                                    <User size={16} className="m-2 text-slate-500" />
                                 </div>
-                                <div class="flex-1 overflow-hidden">
-                                    <p class="text-xs font-bold text-slate-900 truncate">{user?.uid || 'Guest'}</p>
-                                    <p class="text-[10px] text-emerald-500 flex items-center gap-1">
-                                        <div class="w-1 h-1 bg-emerald-500 rounded-full"></div> Online
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-xs font-bold text-slate-900 truncate">{user?.uid || 'Guest'}</p>
+                                    <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                                        <div className="w-1 h-1 bg-emerald-500 rounded-full"></div> Online
                                     </p>
                                 </div>
                             </div>
@@ -414,34 +489,34 @@
                     </div>
 
                     {/* Main Body */}
-                    <div class="flex-1 lg:ml-64 min-w-0">
-                        <header class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
-                            <div class="flex items-center gap-4">
-                                <div class="lg:hidden w-8 h-8 bg-blue-600 rounded-lg"></div>
-                                <div class="relative hidden sm:block">
-                                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                    <input class="bg-slate-100 border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Search resources..." />
+                    <div className="flex-1 lg:ml-64 min-w-0">
+                        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
+                            <div className="flex items-center gap-4">
+                                <div className="lg:hidden w-8 h-8 bg-blue-600 rounded-lg"></div>
+                                <div className="relative hidden sm:block">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input className="bg-slate-100 border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Search resources..." />
                                 </div>
                             </div>
-                            <div class="flex items-center gap-4">
-                                <button class="relative p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                            <div className="flex items-center gap-4">
+                                <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
                                     <Bell size={20} />
-                                    {notifications > 0 && <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+                                    {notifications > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
                                 </button>
-                                <div class="h-8 w-px bg-slate-200"></div>
-                                <div class="flex items-center gap-2">
-                                    <div class="text-right hidden sm:block">
-                                        <p class="text-xs font-bold text-slate-900 leading-none">Admin Mode</p>
-                                        <p class="text-[10px] text-slate-500">Creative Team</p>
+                                <div className="h-8 w-px bg-slate-200"></div>
+                                <div className="flex items-center gap-2">
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-xs font-bold text-slate-900 leading-none">Admin Mode</p>
+                                        <p className="text-[10px] text-slate-500">Creative Team</p>
                                     </div>
-                                    <div class="w-9 h-9 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
+                                    <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
                                         AD
                                     </div>
                                 </div>
                             </div>
                         </header>
 
-                        <main class="p-4 md:p-8 max-w-6xl mx-auto">
+                        <main className="p-4 md:p-8 max-w-6xl mx-auto">
                             {renderContent()}
                         </main>
                     </div>
