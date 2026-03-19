@@ -286,7 +286,7 @@
         };
 
         // 2. Task Card
-        const TaskCard = ({ task, onClick, onSelect, isSelected, isGuest }) => {
+        const TaskCard = ({ task, onClick, onSelect, isSelected }) => {
             const worker = WORKERS.find(w => w.name === task.assignee) || WORKERS[4];
             const platform = PLATFORMS[task.platform] || PLATFORMS['other'];
             const PlatformIcon = platform.icon;
@@ -303,17 +303,15 @@
                         onClick();
                     }}
                 >
-                    {/* Checkbox for bulk actions (Hide for guests) */}
-                    {!isGuest && (
-                        <div 
-                            className="checkbox-area absolute top-4 right-4 z-10 p-1"
-                            onClick={(e) => { e.stopPropagation(); onSelect(task.id); }}
-                        >
-                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white group-hover:border-blue-400'}`}>
-                                {isSelected && <Check size={14} className="text-white" />}
-                            </div>
+                    {/* Checkbox for bulk actions */}
+                    <div 
+                        className="checkbox-area absolute top-4 right-4 z-10 p-1"
+                        onClick={(e) => { e.stopPropagation(); onSelect(task.id); }}
+                    >
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white group-hover:border-blue-400'}`}>
+                            {isSelected && <Check size={14} className="text-white" />}
                         </div>
-                    )}
+                    </div>
 
                     <div className="flex items-start gap-3 pr-8">
                         <div className={`p-2.5 rounded-xl ${platform.bg} ${platform.color} shrink-0`}>
@@ -642,7 +640,7 @@
         };
 
         // 4. Task Detail Modal (Read Only)
-        const TaskDetailModal = ({ task, onClose, onEdit, isGuest }) => {
+        const TaskDetailModal = ({ task, onClose, onEdit }) => {
             if (!task) return null;
             
             const worker = WORKERS.find(w => w.name === task.assignee) || WORKERS[4];
@@ -758,16 +756,14 @@
                         </div>
                         
                         {/* Footer / Actions */}
-                        {!isGuest && (
-                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                                <button 
-                                    onClick={() => onEdit(task)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors text-sm font-medium"
-                                >
-                                    <Edit2 size={16} /> Edit Task
-                                </button>
-                            </div>
-                        )}
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <button 
+                                onClick={() => onEdit(task)}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors text-sm font-medium"
+                            >
+                                <Edit2 size={16} /> Edit Task
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
@@ -921,7 +917,7 @@
 
             // Handlers
             const handleSaveTask = async (taskData) => {
-                if (user?.isAnonymous || user?.uid === 'guest') {
+                if (!user || user.uid === 'guest') {
                     // Mock save
                     const newTask = { ...taskData, id: editingTask ? editingTask.id : `mock-${Date.now()}` };
                     setTasks(prev => editingTask ? prev.map(t => t.id === newTask.id ? newTask : t) : [newTask, ...prev]);
@@ -957,7 +953,7 @@
             };
 
             const handleDelete = async (id) => {
-                if (user?.isAnonymous || user?.uid === 'guest') {
+                if (!user || user.uid === 'guest') {
                     setTasks(prev => prev.filter(t => t.id !== id));
                     setConfirmModal(prev => ({ ...prev, isOpen: false }));
                     return;
@@ -999,7 +995,7 @@
                         message: `Are you sure you want to delete ${selectedTasks.size} tasks? This cannot be undone.`,
                         onConfirm: async () => {
                             setActionLoading(true);
-                            if (user?.isAnonymous || user?.uid === 'guest') {
+                            if (!user || user.uid === 'guest') {
                                 setTasks(prev => prev.filter(t => !selectedTasks.has(t.id)));
                             } else {
                                 try {
@@ -1021,7 +1017,7 @@
                 } else if (action === 'done') {
                     // Mark as done
                     setActionLoading(true);
-                    if (user?.isAnonymous || user?.uid === 'guest') {
+                    if (!user || user.uid === 'guest') {
                         setTasks(prev => prev.map(t => selectedTasks.has(t.id) ? { ...t, status: 'done' } : t));
                     } else {
                         try {
@@ -1065,7 +1061,7 @@
 
             // Quick Status Update (Drag Drop simulation for kanban, or simple click)
             const handleStatusChange = async (taskId, newStatus) => {
-                 if (user?.isAnonymous || user?.uid === 'guest') {
+                 if (!user || user.uid === 'guest') {
                     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
                     return;
                 }
@@ -1101,7 +1097,7 @@
                             {/* Mobile User/Auth Badge */}
                             <div className="md:hidden flex items-center gap-2">
                                 {user?.isAnonymous ? (
-                                    <span className="bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded-md flex items-center gap-1"><Lock size={12}/> Guest Mode</span>
+                                    <span className="bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded-md flex items-center gap-1"><Unlock size={12}/> Guest (Can Edit)</span>
                                 ) : (
                                     <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-1 rounded-md flex items-center gap-1"><Unlock size={12}/> Editor</span>
                                 )}
@@ -1112,10 +1108,10 @@
                         <div className="px-5 py-3 border-y border-slate-800 hidden md:block">
                              {user?.isAnonymous ? (
                                 <div className="flex items-center gap-2 text-sm text-slate-400">
-                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><Lock size={16}/></div>
+                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><Unlock size={16}/></div>
                                     <div>
                                         <div className="font-medium text-slate-200">Guest User</div>
-                                        <div className="text-[10px]">Read-only / Mock Data</div>
+                                        <div className="text-[10px]">Public Edit Access</div>
                                     </div>
                                 </div>
                             ) : (
@@ -1185,14 +1181,12 @@
                         </div>
 
                         {/* Mobile Add Button - Floating */}
-                        {!user?.isAnonymous && (
-                            <button 
-                                onClick={() => { setEditingTask(null); setAddModalOpen(true); }}
-                                className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center z-50 hover:bg-blue-700 active:scale-95 transition-all"
-                            >
-                                <Plus size={24} />
-                            </button>
-                        )}
+                        <button 
+                            onClick={() => { setEditingTask(null); setAddModalOpen(true); }}
+                            className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center z-50 hover:bg-blue-700 active:scale-95 transition-all"
+                        >
+                            <Plus size={24} />
+                        </button>
                     </div>
 
                     {/* Main Content Area */}
@@ -1222,14 +1216,12 @@
                                     <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Board</button>
                                 </div>
                                 
-                                {!user?.isAnonymous && (
-                                    <button 
-                                        onClick={() => { setEditingTask(null); setAddModalOpen(true); }}
-                                        className="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm shadow-blue-500/20"
-                                    >
-                                        <Plus size={16} /> New Task
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={() => { setEditingTask(null); setAddModalOpen(true); }}
+                                    className="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm shadow-blue-500/20"
+                                >
+                                    <Plus size={16} /> New Task
+                                </button>
                             </div>
                         </div>
 
@@ -1296,7 +1288,6 @@
                                                                     onClick={() => { setActiveTask(task); setDetailModalOpen(true); }}
                                                                     onSelect={handleToggleSelect}
                                                                     isSelected={selectedTasks.has(task.id)}
-                                                                    isGuest={user?.isAnonymous}
                                                                 />
                                                             ))
                                                         ) : (
@@ -1336,7 +1327,6 @@
                                                                 onClick={() => { setActiveTask(task); setDetailModalOpen(true); }}
                                                                 onSelect={handleToggleSelect}
                                                                 isSelected={selectedTasks.has(task.id)}
-                                                                isGuest={user?.isAnonymous}
                                                             />
                                                         ))}
                                                         {groupTasks.length === 0 && (
@@ -1356,7 +1346,7 @@
                     </div>
 
                     {/* Bulk Actions Bar */}
-                    {!user?.isAnonymous && selectedTasks.size > 0 && (
+                    {selectedTasks.size > 0 && (
                         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-slideUp">
                             <span className="font-bold text-sm">{selectedTasks.size} selected</span>
                             <div className="h-4 w-px bg-slate-700"></div>
@@ -1401,7 +1391,6 @@
                         task={activeTask} 
                         onClose={() => { setActiveTask(null); setDetailModalOpen(false); }} 
                         onEdit={(task) => { setDetailModalOpen(false); setEditingTask(task); setAddModalOpen(true); }}
-                        isGuest={user?.isAnonymous}
                     />
                 </div>
             );
