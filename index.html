@@ -142,9 +142,9 @@
         import { initializeApp } from 'firebase/app';
         import { 
             getFirestore, collection, addDoc, onSnapshot, 
-            updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, writeBatch 
+            updateDoc, deleteDoc, doc, serverTimestamp, writeBatch 
         } from 'firebase/firestore';
-        import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
         import * as Lucide from 'lucide-react';
 
         const { 
@@ -890,17 +890,24 @@
                     return;
                 }
 
-                // In a real multi-tenant app, path might be 'artifacts', appId, 'public', 'data', 'tasks'
-                // We use standard collection here as per rules.
                 const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-                const q = query(tasksRef, orderBy('createdAt', 'desc'));
-
-                const unsubscribe = onSnapshot(q, 
+                
+                // Do NOT use orderBy to prevent Missing Index errors
+                // We will sort data in memory instead
+                const unsubscribe = onSnapshot(tasksRef, 
                     (snapshot) => {
                         const tasksData = snapshot.docs.map(doc => ({
                             id: doc.id,
                             ...doc.data()
                         }));
+                        
+                        // Memory sorting by createdAt (descending)
+                        tasksData.sort((a, b) => {
+                            const timeA = a.createdAt?.seconds || 0;
+                            const timeB = b.createdAt?.seconds || 0;
+                            return timeB - timeA;
+                        });
+
                         setTasks(tasksData);
                         setLoading(false);
                         setError(null);
